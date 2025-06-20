@@ -26,7 +26,7 @@ function DemandZoneForm({ onSubmit }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     // Normalize ticker: uppercase and append .NS if not present
-    const normalizedTicker = formData ticker.toUpperCase().endsWith('.NS')
+    const normalizedTicker = formData.ticker.toUpperCase().endsWith('.NS')
       ? formData.ticker.toUpperCase()
       : `${formData.ticker.toUpperCase()}.NS`
 
