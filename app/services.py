@@ -21,8 +21,8 @@ def fetch_stock_data(ticker: str, period: str, interval: str) -> pd.DataFrame:
 
 def identify_demand_zones(
     data: pd.DataFrame,
-    legin_min_body_percent: int = 30,
-    legout_min_body_percent: int = 30,
+    legin_min_body_percent: int = 50,
+    legout_min_body_percent: int = 50,
     base_max_body_percent: int = 50,
     min_base_candles: int = 1,
     max_base_candles: int = 5,
@@ -32,6 +32,7 @@ def identify_demand_zones(
 
     while i < len(data) - max_base_candles - 1:
         # Check for leg-in candle (green or red)
+        print(f"Processing candle at index {i}")
         leg_in = data.iloc[i]
         is_leg_in_red = leg_in['Close'] < leg_in['Open'] and (abs(leg_in['Close'] - leg_in['Open']) / (leg_in['High'] - leg_in['Low']) * 100) >= legin_min_body_percent
         is_leg_in_green = leg_in['Close'] > leg_in['Open'] and (abs(leg_in['Close'] - leg_in['Open']) / (leg_in['High'] - leg_in['Low']) * 100) >= legin_min_body_percent
