@@ -19,29 +19,34 @@ def fetch_stock_data(ticker: str, period: str, interval: str) -> pd.DataFrame:
         logger.error(f"Error fetching data for {ticker}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching data: {str(e)}")
 
-def identify_demand_zones(data: pd.DataFrame) -> List[Dict]:
+def identify_demand_zones(
+    data: pd.DataFrame,
+    legin_min_body_percent: int = 30,
+    legout_min_body_percent: int = 30,
+    base_max_body_percent: int = 50,
+    min_base_candles: int = 1,
+    max_base_candles: int = 5,
+) -> List[Dict]:
     demand_zones = []
-    min_base_candles = 1
-    max_base_candles = 5
     i = 0
 
     while i < len(data) - max_base_candles - 1:
         # Check for leg-in candle (green or red)
         leg_in = data.iloc[i]
-        is_leg_in_red = leg_in['Close'] < leg_in['Open']
-        is_leg_in_green = leg_in['Close'] > leg_in['Open']
+        is_leg_in_red = leg_in['Close'] < leg_in['Open'] and (abs(leg_in['Close'] - leg_in['Open']) / (leg_in['High'] - leg_in['Low']) * 100) >= legin_min_body_percent
+        is_leg_in_green = leg_in['Close'] > leg_in['Open'] and (abs(leg_in['Close'] - leg_in['Open']) / (leg_in['High'] - leg_in['Low']) * 100) >= legin_min_body_percent
         if not (is_leg_in_red or is_leg_in_green):
             i += 1
             continue
 
-        # Check for base candles (1-5 candles with body < 50% of range)
+        # Check for base candles (1-5 candles with body < base_max_body_percent of range)
         base_candles = []
         j = i + 1
         while j < len(data) and len(base_candles) < max_base_candles:
             candle = data.iloc[j]
             candle_range = candle['High'] - candle['Low']
             body = abs(candle['Close'] - candle['Open'])
-            if candle_range > 0 and body / candle_range < 0.5:
+            if candle_range > 0 and (body / candle_range * 100) < base_max_body_percent:
                 base_candles.append(candle)
             else:
                 break
@@ -51,10 +56,11 @@ def identify_demand_zones(data: pd.DataFrame) -> List[Dict]:
             i = j
             continue
 
-        # Check for leg-out candle (green rally candle)
+        # Check for leg-out candle (green rally candle with min body percent)
         if j < len(data):
             leg_out = data.iloc[j]
-            is_leg_out_green = leg_out['Close'] > leg_out['Open'] and leg_out['Close'] > leg_in['High']
+            leg_out_body_percent = (abs(leg_out['Close'] - leg_out['Open']) / (leg_out['High'] - leg_out['Low']) * 100) if (leg_out['High'] - leg_out['Low']) > 0 else 0
+            is_leg_out_green = leg_out['Close'] > leg_out['Open'] and leg_out['Close'] > leg_in['High'] and leg_out_body_percent >= legout_min_body_percent
             if not is_leg_out_green:
                 i = j
                 continue
@@ -68,7 +74,7 @@ def identify_demand_zones(data: pd.DataFrame) -> List[Dict]:
 
             # Calculate trade score
             freshness_score = 3.0  # Assume fresh zone
-            strength_score = 1.0 if abs(leg_out['Close'] - leg_out['Open']) / (leg_out['High'] - leg_out['Low']) > 0.5 else 0.5
+            strength_score = 1.0 if leg_out_body_percent > 50 else 0.5
             time_at_base_score = 2.0 if len(base_candles) <= 3 else 1.0 if len(base_candles) <= 5 else 0.0
             trade_score = freshness_score + strength_score + time_at_base_score
 
