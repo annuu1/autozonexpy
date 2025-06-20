@@ -2,48 +2,75 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Demand Zone Finder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <h1>Demand Zone Finder</h1>
-    <form id="demandZoneForm">
-        <label for="ticker">Ticker:</label>
-        <input type="text" id="ticker" name="ticker" required />
-        <br />
-        <label for="period">Period:</label>
-        <input type="text" id="period" name="period" value="1mo" />
-        <br />
-        <label for="interval">Interval:</label>
-        <input type="text" id="interval" name="interval" value="1d" />
-        <br />
-        <label for="leginMinBodyPercent">Legin Candle Body Min %:</label>
-        <input type="number" id="leginMinBodyPercent" name="leginMinBodyPercent" value="50" min="0" max="100" step="1" />
-        <br />
-        <label for="legoutMinBodyPercent">Legout Candle Body Min %:</label>
-        <input type="number" id="legoutMinBodyPercent" name="legoutMinBodyPercent" value="50" min="0" max="100" step="1" />
-        <br />
-        <label for="baseMaxBodyPercent">Base Candle Maximum Body %:</label>
-        <input type="number" id="baseMaxBodyPercent" name="baseMaxBodyPercent" value="47" min="0" max="100" step="1" />
-        <br />
-        <label for="minBaseCandles">Min Number of Base Candles:</label>
-        <input type="number" id="minBaseCandles" name="minBaseCandles" value="1" min="1" step="1" />
-        <br />
-        <label for="maxBaseCandles">Max Number of Base Candles:</label>
-        <input type="number" id="maxBaseCandles" name="maxBaseCandles" value="5" min="1" step="1" />
-        <br />
-        <button type="submit">Find Demand Zones</button>
-    </form>
-    <pre id="result"></pre>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
+        <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">Demand Zone Finder</h1>
+        <form id="demandZoneForm" class="space-y-4">
+            <div>
+                <label for="ticker" class="block text-sm font-medium text-gray-700">Ticker</label>
+                <input type="text" id="ticker" name="ticker" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., RELIANCE" />
+            </div>
+            <div>
+                <label for="start_date" class="block text-sm font-medium text-gray-700">Start Date</label>
+                <input type="date" id="start_date" name="start_date" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <div>
+                <label for="end_date" class="block text-sm font-medium text-gray-700">End Date</label>
+                <input type="date" id="end_date" name="end_date" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <div>
+                <label for="interval" class="block text-sm font-medium text-gray-700">Interval</label>
+                <select id="interval" name="interval" class="mt-1 block w-full p-2ovsk border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="1d" selected>Daily</option>
+                    <option value="1h">Hourly</option>
+                    <option value="1wk">Weekly</option>
+                </select>
+            </div>
+            <div>
+                <label for="leginMinBodyPercent" class="block text-sm font-medium text-gray-700">Leg-in Candle Body Min %</label>
+                <input type="number" id="leginMinBodyPercent" name="leginMinBodyPercent" value="50" min="0" max="100" step="1" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <div>
+                <label for="legoutMinBodyPercent" class="block text-sm font-medium text-gray-700">Leg-out Candle Body Min %</label>
+                <input type="number" id="legoutMinBodyPercent" name="legoutMinBodyPercent" value="50" min="0" max="100" step="1" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <div>
+                <label for="baseMaxBodyPercent" class="block text-sm font-medium text-gray-700">Base Candle Maximum Body %</label>
+                <input type="number" id="baseMaxBodyPercent" name="baseMaxBodyPercent" value="47" min="0" max="100" step="1" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <div>
+                <label for="minBaseCandles" class="block text-sm font-medium text-gray-700">Min Number of Base Candles</label>
+                <input type="number" id="minBaseCandles" name="minBaseCandles" value="1" min="1" step="1" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <div>
+                <label for="maxBaseCandles" class="block text-sm font-medium text-gray-700">Max Number of Base Candles</label>
+                <input type="number" id="maxBaseCandles" name="maxBaseCandles" value="5" min="1" step="1" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 text-white p-2 rounded-md hover:bg-indigo-700">Find Demand Zones</button>
+        </form>
+        <pre id="result" class="mt-6 p-4 bg-gray-50 rounded-md max-h-96 overflow-y-auto"></pre>
+    </div>
 
     <script>
         const form = document.getElementById('demandZoneForm');
         const resultPre = document.getElementById('result');
 
+        // Set default date range: 1 year from today
+        const today = new Date();
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(today.getFullYear() - 1);
+        document.getElementById('start_date').value = oneYearAgo.toISOString().split('T')[0];
+        document.getElementById('end_date').value = today.toISOString().split('T')[0];
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const ticker = document.getElementById('ticker').value;
-            const period = document.getElementById('period').value;
+            const start_date = document.getElementById('start_date').value;
+            const end_date = document.getElementById('end_date').value;
             const interval = document.getElementById('interval').value;
             const leginMinBodyPercent = parseInt(document.getElementById('leginMinBodyPercent').value, 10);
             const legoutMinBodyPercent = parseInt(document.getElementById('legoutMinBodyPercent').value, 10);
@@ -51,29 +78,34 @@
             const minBaseCandles = parseInt(document.getElementById('minBaseCandles').value, 10);
             const maxBaseCandles = parseInt(document.getElementById('maxBaseCandles').value, 10);
 
-            const response = await fetch('/demand-zones', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ 
-                    ticker, 
-                    period, 
-                    interval,
-                    leginMinBodyPercent,
-                    legoutMinBodyPercent,
-                    baseMaxBodyPercent,
-                    minBaseCandles,
-                    maxBaseCandles
-                }),
-            });
+            try {
+                const response = await fetch('/demand-zones', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        ticker, 
+                        start_date,
+                        end_date,
+                        interval,
+                        leginMinBodyPercent,
+                        legoutMinBodyPercent,
+                        baseMaxBodyPercent,
+                        minBaseCandles,
+                        maxBaseCandles
+                    }),
+                });
 
-            if (response.ok) {
-                const data = await response.json();
-                resultPre.textContent = JSON.stringify(data, null, 2);
-            } else {
-                const error = await response.json();
-                resultPre.textContent = 'Error: ' + (error.detail || 'Unknown error');
+                if (response.ok) {
+                    const data = await response.json();
+                    resultPre.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    const error = await response.json();
+                    resultPre.textContent = 'Error: ' + (error.detail || 'Unknown error');
+                }
+            } catch (error) {
+                resultPre.textContent = 'Error: ' + error.message;
             }
         });
     </script>

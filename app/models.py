@@ -1,8 +1,11 @@
 from pydantic import BaseModel
+from datetime import date
+from typing import Optional
 
 class StockRequest(BaseModel):
     ticker: str
-    period: str = "1mo"  # Default: 1 month
+    start_date: Optional[date] = None  # Default set in controller
+    end_date: Optional[date] = None    # Default set in controller
     interval: str = "1d"  # Default: Daily
     leginMinBodyPercent: int = 50
     legoutMinBodyPercent: int = 50

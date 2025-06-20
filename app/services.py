@@ -3,14 +3,20 @@ import pandas as pd
 import logging
 from fastapi import HTTPException
 from typing import List, Dict
+from datetime import date
 import uuid
 
 logger = logging.getLogger(__name__)
 
-def fetch_stock_data(ticker: str, period: str, interval: str) -> pd.DataFrame:
+def fetch_stock_data(ticker: str, start_date: date, end_date: date, interval: str) -> pd.DataFrame:
     try:
+        # Normalize ticker: uppercase and append .NS if not present
+        ticker = ticker.upper()
+        if not ticker.endswith(".NS"):
+            ticker = f"{ticker}.NS"
+        
         stock = yf.Ticker(ticker)
-        data = stock.history(period=period, interval=interval)
+        data = stock.history(start=start_date, end=end_date, interval=interval)
         if data.empty:
             logger.error(f"No data found for ticker {ticker}")
             raise HTTPException(status_code=404, detail="No data found for the given ticker")
@@ -32,10 +38,12 @@ def identify_demand_zones(
 
     while i < len(data) - max_base_candles - 1:
         # Check for leg-in candle (green or red)
-        print(f"Processing candle at index {i}")
         leg_in = data.iloc[i]
-        is_leg_in_red = leg_in['Close'] < leg_in['Open'] and (abs(leg_in['Close'] - leg_in['Open']) / (leg_in['High'] - leg_in['Low']) * 100) >= legin_min_body_percent
-        is_leg_in_green = leg_in['Close'] > leg_in['Open'] and (abs(leg_in['Close'] - leg_in['Open']) / (leg_in['High'] - leg_in['Low']) * 100) >= legin_min_body_percent
+        candle_range = leg_in['High'] - leg_in['Low']
+        body = abs(leg_in['Close'] - leg_in['Open'])
+        body_percent = (body / candle_range * 100) if candle_range > 0 else 0
+        is_leg_in_red = leg_in['Close'] < leg_in['Open'] and body_percent >= legin_min_body_percent
+        is_leg_in_green = leg_in['Close'] > leg_in['Open'] and body_percent >= legin_min_body_percent
         if not (is_leg_in_red or is_leg_in_green):
             i += 1
             continue
@@ -47,7 +55,7 @@ def identify_demand_zones(
             candle = data.iloc[j]
             candle_range = candle['High'] - candle['Low']
             body = abs(candle['Close'] - candle['Open'])
-            if candle_range > 0 and (body / candle_range * 100) < base_max_body_percent:
+            if candle_range > 0 and (body / candle_range * 100) <= base_max_body_percent:
                 base_candles.append(candle)
             else:
                 break
