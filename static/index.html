@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Demand Zone Finder</title>
+</head>
+<body>
+    <h1>Demand Zone Finder</h1>
+    <form id="demandZoneForm">
+        <label for="ticker">Ticker:</label>
+        <input type="text" id="ticker" name="ticker" required />
+        <br />
+        <label for="period">Period:</label>
+        <input type="text" id="period" name="period" value="1mo" />
+        <br />
+        <label for="interval">Interval:</label>
+        <input type="text" id="interval" name="interval" value="1d" />
+        <br />
+        <button type="submit">Find Demand Zones</button>
+    </form>
+    <pre id="result"></pre>
+
+    <script>
+        const form = document.getElementById('demandZoneForm');
+        const resultPre = document.getElementById('result');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const ticker = document.getElementById('ticker').value;
+            const period = document.getElementById('period').value;
+            const interval = document.getElementById('interval').value;
+
+            const response = await fetch('/demand-zones', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ticker, period, interval }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                resultPre.textContent = JSON.stringify(data, null, 2);
+            } else {
+                const error = await response.json();
+                resultPre.textContent = 'Error: ' + (error.detail || 'Unknown error');
+            }
+        });
+    </script>
+</body>
+</html>
