@@ -1,8 +1,8 @@
 import logging
 from fastapi import HTTPException
 from datetime import datetime, timedelta
-from app.models import StockRequest, DemandZone
-from app.services import fetch_stock_data, identify_demand_zones
+from app.models.models import StockRequest, DemandZone
+from app.services.services import fetch_stock_data, identify_demand_zones
 from typing import List, Dict
 
 
