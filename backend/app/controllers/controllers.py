@@ -20,8 +20,10 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
         logger.info(f"Processing {request.ticker} from {request.start_date} to {request.end_date}, higher interval: {request.higher_interval}, lower interval: {request.lower_interval}")
 
         higher_data = fetch_stock_data(request.ticker, request.start_date, request.end_date, request.higher_interval)
-        higher_zones = identify_demand_zones(
+        higher_zones = await identify_demand_zones(
             higher_data,
+            request.ticker,
+            request.higher_interval,  # Pass the higher time_frame
             legin_min_body_percent=request.leginMinBodyPercent,
             legout_min_body_percent=request.legoutMinBodyPercent,
             base_max_body_percent=request.baseMaxBodyPercent,
@@ -51,8 +53,10 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
 
                     lt_data = fetch_stock_data(request.ticker, start_date, end_date, request.lower_interval)
 
-                    lt_zones = identify_demand_zones(
+                    lt_zones = await identify_demand_zones(
                         lt_data,
+                        request.ticker,
+                        request.lower_interval,  # Pass the lower time_frame
                         legin_min_body_percent=request.leginMinBodyPercent,
                         legout_min_body_percent=request.legoutMinBodyPercent,
                         base_max_body_percent=request.baseMaxBodyPercent,

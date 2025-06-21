@@ -24,6 +24,6 @@ class DemandZone(BaseModel):
     pattern: str
     timestamp: str
     base_candles: int
-    freshness: str
+    freshness: float
     parent_zone_id: Optional[str] = None
     coinciding_lower_zones: List[Dict] = []

@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from typing import List, Dict
 from datetime import date
 import uuid
+from app.utils.freshness_service import get_freshness
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +32,10 @@ def fetch_stock_data(ticker: str, start_date: date, end_date: date, interval: st
         logger.error(f"Error fetching data for {ticker}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching data: {str(e)}")
 
-def identify_demand_zones(
+async def identify_demand_zones(
     data: pd.DataFrame,
+    ticker: str,
+    time_frame: str,
     legin_min_body_percent: int = 50,
     legout_min_body_percent: int = 50,
     base_max_body_percent: int = 50,
@@ -125,7 +128,13 @@ def identify_demand_zones(
         proximal_line = max(base_bodies)
         distal_line = min(base_lows)
 
-        freshness_score = 3.0
+        freshness_score = await get_freshness(
+                            ticker, 
+                            time_frame, 
+                            proximal_line, 
+                            distal_line, 
+                            leg_out.name.isoformat()
+                        )
         strength_score = 1.0 if leg_out_body_percent > 50 else 0.5
         time_at_base_score = 2.0 if len(base_candles) <= 3 else 1.0
         trade_score = freshness_score + strength_score + time_at_base_score
@@ -141,7 +150,7 @@ def identify_demand_zones(
             "start_timestamp": leg_in.name.isoformat(),
             "end_timestamp": leg_out.name.isoformat(),
             "base_candles": len(base_candles),
-            "freshness": "Fresh",
+            "freshness": freshness_score,
             "timestamp": leg_in.name.isoformat()
         }
 
