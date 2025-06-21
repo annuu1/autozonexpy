@@ -8,7 +8,7 @@ import logging
 
 # Configure logging at the start of the module or main app
 logging.basicConfig(
-    level=logging.INFO,  # Capture INFO and above (INFO, WARNING, ERROR)
+    level=logging.DEBUG,  # Capture INFO and above (INFO, WARNING, ERROR)
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',  # Log format
     handlers=[
         logging.StreamHandler()  # Output to console
