@@ -29,17 +29,6 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
         )
         logger.info(f"Found {len(higher_zones)} higher timeframe zones.")
 
-        # lower_data = fetch_stock_data(request.ticker, request.start_date, request.end_date, request.lower_interval)
-        # lower_zones = identify_demand_zones(
-        #     lower_data,
-        #     legin_min_body_percent=request.leginMinBodyPercent,
-        #     legout_min_body_percent=request.legoutMinBodyPercent,
-        #     base_max_body_percent=request.baseMaxBodyPercent,
-        #     min_base_candles=request.minBaseCandles,
-        #     max_base_candles=request.maxBaseCandles,
-        # )
-        # logger.info(f"Found {len(lower_zones)} lower timeframe zones.")
-
         # Map lower timeframe zones under corresponding higher timeframe zones
         if request.detectLowerZones:
             for h_zone in higher_zones:
@@ -48,10 +37,19 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
 
                 try:
                     start_date = parser.parse(h_zone["start_timestamp"]).date()
-                    end_date = parser.parse(h_zone["end_timestamp"]).date() if "end_timestamp" in h_zone else request.end_date
+
+                    # Find next higher timeframe candle timestamp
+                    h_end_timestamp = parser.parse(h_zone["end_timestamp"])
+                    next_candle_ts = higher_data.index[higher_data.index > h_end_timestamp]
+                    if not next_candle_ts.empty:
+                        end_date = next_candle_ts[0].date()
+                    else:
+                        end_date = request.end_date
+
+                    logger.info(f"Fetching lower timeframe data from {start_date} to {end_date} for higher zone {h_zone['start_timestamp']}")
 
                     lt_data = fetch_stock_data(request.ticker, start_date, end_date, request.lower_interval)
-                    print(lt_data)
+
                     lt_zones = identify_demand_zones(
                         lt_data,
                         legin_min_body_percent=request.leginMinBodyPercent,
