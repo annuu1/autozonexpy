@@ -9,16 +9,18 @@ function DemandZoneForm({ onSubmit }) {
 
   // Initial form state
   const [formData, setFormData] = useState({
-    ticker: '',
-    start_date: oneYearAgo.toISOString().split('T')[0],
-    end_date: today.toISOString().split('T')[0],
-    interval: '1d',
-    leginMinBodyPercent: 50,
-    legoutMinBodyPercent: 50,
-    baseMaxBodyPercent: 47,
-    minBaseCandles: 1,
-    maxBaseCandles: 5,
-  })
+  ticker: '',
+  start_date: oneYearAgo.toISOString().split('T')[0],
+  end_date: today.toISOString().split('T')[0],
+  higher_interval: '1d',
+  lower_interval: '1h',
+  leginMinBodyPercent: 50,
+  legoutMinBodyPercent: 50,
+  baseMaxBodyPercent: 47,
+  minBaseCandles: 1,
+  maxBaseCandles: 5,
+})
+
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState({})
 
@@ -98,6 +100,29 @@ function DemandZoneForm({ onSubmit }) {
       step: 1,
       tooltip: 'Maximum number of base candles in the demand zone.',
     },
+    {
+  id: 'higher_interval',
+  label: 'Higher Timeframe Interval',
+  type: 'select',
+  options: [
+    { value: '1d', label: 'Daily' },
+    { value: '1h', label: 'Hourly' },
+    { value: '1wk', label: 'Weekly' },
+  ],
+  tooltip: 'Choose the higher timeframe interval.',
+},
+{
+  id: 'lower_interval',
+  label: 'Lower Timeframe Interval',
+  type: 'select',
+  options: [
+    { value: '1h', label: 'Hourly' },
+    { value: '15m', label: '15 Minutes' },
+    { value: '5m', label: '5 Minutes' },
+  ],
+  tooltip: 'Choose the lower timeframe interval for nested zone scan.',
+},
+
   ]
 
   // Handle input changes

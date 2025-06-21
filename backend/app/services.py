@@ -97,10 +97,12 @@ def identify_demand_zones(
                 "distal_line": distal_line,
                 "trade_score": trade_score,
                 "pattern": pattern,
-                "timestamp": leg_out.name.isoformat(),
+                "start_timestamp": leg_in.name.isoformat(),
+                "end_timestamp": leg_out.name.isoformat(),
                 "base_candles": len(base_candles),
                 "freshness": "Fresh"
             }
+
             demand_zones.append(zone)
             i = j + 1
         else:

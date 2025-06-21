@@ -4,9 +4,10 @@ from typing import Optional
 
 class StockRequest(BaseModel):
     ticker: str
-    start_date: Optional[date] = None  # Default set in controller
-    end_date: Optional[date] = None    # Default set in controller
-    interval: str = "1d"  # Default: Daily
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    higher_interval: str = "1d"
+    lower_interval: str = "1h"
     leginMinBodyPercent: int = 50
     legoutMinBodyPercent: int = 50
     baseMaxBodyPercent: int = 50
@@ -22,3 +23,4 @@ class DemandZone(BaseModel):
     timestamp: str
     base_candles: int
     freshness: str
+    parent_zone_id: Optional[str] = None  # New field
