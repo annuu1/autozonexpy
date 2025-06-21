@@ -5,6 +5,7 @@ from app.models.models import StockRequest, DemandZone
 from app.services.services import fetch_stock_data, identify_demand_zones
 from typing import List, Dict
 from dateutil import parser
+from app.models.models import DemandZone
 
 
 logger = logging.getLogger(__name__)
@@ -69,8 +70,9 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
 
 
         logger.info(f"Mapped lower timeframe zones under higher timeframe zones.")
+        higher_zone_models = [DemandZone(**zone) for zone in higher_zones]
 
-        return higher_zones
+        return higher_zone_models
 
     except HTTPException as e:
         raise e

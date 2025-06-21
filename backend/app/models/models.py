@@ -1,6 +1,7 @@
 from pydantic import BaseModel
-from datetime import date
-from typing import Optional
+from datetime import date, datetime
+from typing import Dict, Optional
+from typing import Optional, List
 
 class StockRequest(BaseModel):
     ticker: str
@@ -24,5 +25,5 @@ class DemandZone(BaseModel):
     timestamp: str
     base_candles: int
     freshness: str
-    parent_zone_id: Optional[str] = None  # New field
-    timestamp: Optional[str] = None
+    parent_zone_id: Optional[str] = None
+    coinciding_lower_zones: List[Dict] = []
