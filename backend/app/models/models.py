@@ -13,6 +13,7 @@ class StockRequest(BaseModel):
     baseMaxBodyPercent: int = 50
     minBaseCandles: int = 1
     maxBaseCandles: int = 5
+    detectLowerZones: Optional[bool] = True
 
 class DemandZone(BaseModel):
     zone_id: str
@@ -24,3 +25,4 @@ class DemandZone(BaseModel):
     base_candles: int
     freshness: str
     parent_zone_id: Optional[str] = None  # New field
+    timestamp: Optional[str] = None
