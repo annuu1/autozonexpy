@@ -26,7 +26,7 @@ def fetch_stock_data(ticker: str, start_date: date, end_date: date, interval: st
                 )
         if data.empty:
             logger.error(f"No data found for ticker {ticker}")
-            raise HTTPException(status_code=404, detail="No data found for the given ticker")
+            return None
         return data
     except Exception as e:
         logger.error(f"Error fetching data for {ticker}: {str(e)}")

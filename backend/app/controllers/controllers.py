@@ -21,6 +21,9 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
         logger.info(f"Processing {request.ticker} from {request.start_date} to {request.end_date}, higher interval: {request.higher_interval}, lower interval: {request.lower_interval}")
 
         higher_data = fetch_stock_data(request.ticker, request.start_date, request.end_date, request.higher_interval)
+        if higher_data is None:
+            logger.warning(f"No data found for {request.ticker}, skipping.")
+            return [] 
         higher_zones = await identify_demand_zones(
             higher_data,
             request.ticker,
