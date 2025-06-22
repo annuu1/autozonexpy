@@ -98,7 +98,9 @@ function MultiDemandZoneForm({ onZonesFetched }) {
         "http://127.0.0.1:8000/multi-demand-zones",
         payload
       );
-      onZonesFetched(response.data);
+      const rawZonesByTicker = response.data;
+      const allZones = Object.values(rawZonesByTicker).flat();
+      onZonesFetched(allZones);
     } catch (error) {
       console.error(error);
       onZonesFetched({});
