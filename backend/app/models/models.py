@@ -27,3 +27,16 @@ class DemandZone(BaseModel):
     freshness: float
     parent_zone_id: Optional[str] = None
     coinciding_lower_zones: List[Dict] = []
+
+
+class MultiStockRequest(BaseModel):
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    higher_interval: str = "1d"
+    lower_interval: str = "1h"
+    leginMinBodyPercent: int = 50
+    legoutMinBodyPercent: int = 50
+    baseMaxBodyPercent: int = 50
+    minBaseCandles: int = 1
+    maxBaseCandles: int = 5
+    detectLowerZones: Optional[bool] = True

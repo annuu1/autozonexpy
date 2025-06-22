@@ -5,8 +5,8 @@ from app.models.models import StockRequest, DemandZone
 from app.services.services import fetch_stock_data, identify_demand_zones
 from typing import List, Dict
 from dateutil import parser
-from app.models.models import DemandZone
-
+from app.models.models import DemandZone, MultiStockRequest
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -88,3 +88,44 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
 
 async def health_check_controller():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
+def load_tickers_from_json(file_path="data/tickers.json") -> List[str]:
+    with open(file_path, "r") as f:
+        data = json.load(f)
+    return data.get("tickers", [])
+async def find_multi_demand_zones_controller(request: StockRequest) -> Dict[str, List[Dict]]:
+    result = {}
+    errors = []
+
+    tickers = load_tickers_from_json()  # Or load from CSV if needed
+
+    for ticker in tickers:
+        try:
+            stock_request = StockRequest(
+                ticker=ticker,
+                start_date=request.start_date,
+                end_date=request.end_date,
+                higher_interval=request.higher_interval,
+                lower_interval=request.lower_interval,
+                leginMinBodyPercent=request.leginMinBodyPercent,
+                legoutMinBodyPercent=request.legoutMinBodyPercent,
+                baseMaxBodyPercent=request.baseMaxBodyPercent,
+                minBaseCandles=request.minBaseCandles,
+                maxBaseCandles=request.maxBaseCandles,
+                detectLowerZones=request.detectLowerZones
+            )
+
+            zones = await find_demand_zones_controller(stock_request)
+            result[ticker] = zones
+
+        except Exception as e:
+            logger.error(f"Failed to process zones for {ticker}: {str(e)}")
+            errors.append({ "ticker": ticker, "error": str(e) })
+
+    response = {
+        "results": result,
+        "errors": errors
+    }
+
+    return response
+
