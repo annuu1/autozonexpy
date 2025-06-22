@@ -7,6 +7,7 @@ from typing import List, Dict
 from dateutil import parser
 from app.models.models import DemandZone, MultiStockRequest
 import json
+from app.utils.ticker_loader import load_tickers_from_json
 
 logger = logging.getLogger(__name__)
 
@@ -93,14 +94,16 @@ def load_tickers_from_json(file_path="data/tickers.json") -> List[str]:
     with open(file_path, "r") as f:
         data = json.load(f)
     return data.get("tickers", [])
-async def find_multi_demand_zones_controller(request: StockRequest) -> Dict[str, List[Dict]]:
-    result = {}
-    errors = []
+async def find_multi_demand_zones_controller(request: MultiStockRequest) -> Dict[str, List[Dict]]:
+    try:
+        tickers = load_tickers_from_json("data/tickers.json")
+        logger.info(f"Loaded tickers: {tickers}")
 
-    tickers = load_tickers_from_json()  # Or load from CSV if needed
+        all_results = {}
 
-    for ticker in tickers:
-        try:
+        for ticker in tickers:
+            logger.info(f"Processing ticker: {ticker}")
+
             stock_request = StockRequest(
                 ticker=ticker,
                 start_date=request.start_date,
@@ -112,20 +115,15 @@ async def find_multi_demand_zones_controller(request: StockRequest) -> Dict[str,
                 baseMaxBodyPercent=request.baseMaxBodyPercent,
                 minBaseCandles=request.minBaseCandles,
                 maxBaseCandles=request.maxBaseCandles,
-                detectLowerZones=request.detectLowerZones
+                detectLowerZones=request.detectLowerZones,
             )
 
-            zones = await find_demand_zones_controller(stock_request)
-            result[ticker] = zones
+            result = await find_demand_zones_controller(stock_request)
+            all_results[ticker] = result
 
-        except Exception as e:
-            logger.error(f"Failed to process zones for {ticker}: {str(e)}")
-            errors.append({ "ticker": ticker, "error": str(e) })
+        return all_results
 
-    response = {
-        "results": result,
-        "errors": errors
-    }
-
-    return response
+    except Exception as e:
+        logger.error(f"Error processing multi ticker demand zones: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 

@@ -6,6 +6,8 @@ from app.routes import router
 import logging
 
 
+from fastapi.middleware.cors import CORSMiddleware
+
 # Configure logging at the start of the module or main app
 logging.basicConfig(
     level=logging.INFO,  # Capture INFO and above (INFO, WARNING, ERROR)
@@ -23,6 +25,14 @@ app = FastAPI(title="GTF Demand Zone Finder API", version="1.0.0")
 
 app.include_router(router)
 
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Mount static files directory
