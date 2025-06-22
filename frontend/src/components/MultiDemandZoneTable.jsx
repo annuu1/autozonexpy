@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 
-export default function CoincidingZoneTable({ zones }) {
+export default function CoincidingZoneTable({ zones, ticker }) {
   const [freshnessFilter, setFreshnessFilter] = useState("all")
   const [sortByTime, setSortByTime] = useState("desc")
   const [selectedLowerZones, setSelectedLowerZones] = useState(null)
@@ -57,6 +57,7 @@ export default function CoincidingZoneTable({ zones }) {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Symbol</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Proximal</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Distal</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trade Score</th>
@@ -70,6 +71,7 @@ export default function CoincidingZoneTable({ zones }) {
           <tbody className="bg-white bg-opacity-60 divide-y divide-gray-200">
             {sortedZones.map((zone) => (
               <tr key={zone.timestamp + zone.proximal_line}>
+                <td className="px-6 py-4 text-sm text-gray-900">{zone.ticker}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">{zone.proximal_line.toFixed(2)}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">{zone.distal_line.toFixed(2)}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">{zone.trade_score.toFixed(2)}</td>
@@ -98,10 +100,12 @@ export default function CoincidingZoneTable({ zones }) {
 
       {/* Modal */}
       {selectedLowerZones && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
-          <div className="bg-white bg-opacity-80 backdrop-blur-md rounded-xl p-6 max-w-2xl w-full shadow-2xl border border-gray-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-20 backdrop-blur-[2px]">
+          <div className="bg-white bg-opacity-85 backdrop-blur-lg rounded-xl p-6 max-w-2xl w-full shadow-2xl border border-gray-300">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Coinciding Lower Zones</h2>
+              <h2 className="text-lg font-semibold">
+                Coinciding Lower Zones — <span className="text-blue-600">{ticker}</span>
+              </h2>
               <button
                 onClick={() => setSelectedLowerZones(null)}
                 className="text-gray-600 hover:text-black text-xl"

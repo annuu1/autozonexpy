@@ -99,7 +99,11 @@ function MultiDemandZoneForm({ onZonesFetched }) {
         payload
       );
       const rawZonesByTicker = response.data;
-      const allZones = Object.values(rawZonesByTicker).flat();
+      const allZones = Object.entries(rawZonesByTicker).flatMap(
+        ([ticker, zones]) => zones.map((zone) => ({ ...zone, ticker }))
+      );
+      onZonesFetched(allZones);
+
       onZonesFetched(allZones);
     } catch (error) {
       console.error(error);
