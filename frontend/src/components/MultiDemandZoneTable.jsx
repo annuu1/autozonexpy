@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 
-export default function CoincidingZoneTable({ zones, ticker }) {
+export default function CoincidingZoneTable({ zones }) {
   const [freshnessFilter, setFreshnessFilter] = useState("all")
   const [sortByTime, setSortByTime] = useState("desc")
   const [selectedLowerZones, setSelectedLowerZones] = useState(null)
@@ -21,6 +21,53 @@ export default function CoincidingZoneTable({ zones, ticker }) {
   )
 
   const freshnessOptions = ["all", "0", "1.5", "3.0"]
+
+  const downloadCSV = () => {
+    const csvHeader = [
+      "Ticker",
+      "Proximal",
+      "Distal",
+      "Trade Score",
+      "Pattern",
+      "Timestamp",
+      "time",
+      "Base Candles",
+      "Freshness",
+      "No. of Coinciding Zones",
+      "Coinciding Freshness"
+    ]
+
+    const csvRows = sortedZones.map(zone => {
+      const numCoinciding = zone.coinciding_lower_zones?.length || 0
+      const coincidingFreshness = zone.coinciding_lower_zones
+        ? zone.coinciding_lower_zones.map(z => z.freshness).join(", ")
+        : ""
+
+      return [
+        zone.ticker,
+        zone.proximal_line.toFixed(2),
+        zone.distal_line.toFixed(2),
+        zone.trade_score.toFixed(2),
+        zone.pattern,
+        new Date(zone.timestamp).toLocaleString(),
+        zone.base_candles,
+        zone.freshness,
+        numCoinciding,
+        `"${coincidingFreshness}"`
+      ].join(",")
+    })
+
+    const csvContent = [csvHeader.join(","), ...csvRows].join("\n")
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", "demand_zones.csv")
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   return (
     <div className="mt-8 space-y-6">
@@ -50,6 +97,13 @@ export default function CoincidingZoneTable({ zones, ticker }) {
             <option value="asc">Oldest First</option>
           </select>
         </div>
+
+        <button
+          onClick={downloadCSV}
+          className="ml-auto bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+        >
+          Download CSV
+        </button>
       </div>
 
       {/* Table */}
@@ -79,9 +133,8 @@ export default function CoincidingZoneTable({ zones, ticker }) {
                 <td className="px-6 py-4 text-sm text-gray-900">{new Date(zone.timestamp).toLocaleString()}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">{zone.base_candles}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">{zone.freshness}</td>
-
                 <td className="px-6 py-4 text-sm text-gray-900">
-                  {zone.coinciding_lower_zones && zone.coinciding_lower_zones.length > 0 ? (
+                  {zone.coinciding_lower_zones?.length > 0 ? (
                     <button
                       onClick={() => setSelectedLowerZones(zone.coinciding_lower_zones)}
                       className="text-blue-600 hover:underline font-medium"
@@ -104,7 +157,7 @@ export default function CoincidingZoneTable({ zones, ticker }) {
           <div className="bg-white bg-opacity-85 backdrop-blur-lg rounded-xl p-6 max-w-2xl w-full shadow-2xl border border-gray-300">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold">
-                Coinciding Lower Zones — <span className="text-blue-600">{ticker}</span>
+                Coinciding Lower Zones
               </h2>
               <button
                 onClick={() => setSelectedLowerZones(null)}
@@ -116,6 +169,7 @@ export default function CoincidingZoneTable({ zones, ticker }) {
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-100 bg-opacity-70">
                 <tr>
+                  <th className="px-4 py-2 text-left">Freshness</th>
                   <th className="px-4 py-2 text-left">Proximal</th>
                   <th className="px-4 py-2 text-left">Distal</th>
                   <th className="px-4 py-2 text-left">Trade Score</th>
@@ -126,6 +180,7 @@ export default function CoincidingZoneTable({ zones, ticker }) {
               <tbody className="bg-white bg-opacity-50 divide-y divide-gray-200">
                 {selectedLowerZones.map(lower => (
                   <tr key={lower.zone_id}>
+                    <td className="px-4 py-2">{lower.freshness}</td>
                     <td className="px-4 py-2">{lower.proximal_line.toFixed(2)}</td>
                     <td className="px-4 py-2">{lower.distal_line.toFixed(2)}</td>
                     <td className="px-4 py-2">{lower.trade_score.toFixed(2)}</td>
