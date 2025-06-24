@@ -2,7 +2,7 @@ import logging
 from fastapi import HTTPException
 from datetime import datetime, timedelta
 from app.models.models import StockRequest, DemandZone
-from app.services.services import fetch_stock_data, identify_demand_zones
+from app.services.services import fetch_stock_data, identify_demand_zones, identify_ltf_zones
 from typing import List, Dict
 from dateutil import parser
 from app.models.models import DemandZone, MultiStockRequest
@@ -57,7 +57,7 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
 
                     lt_data = fetch_stock_data(request.ticker, start_date, end_date, request.lower_interval)
 
-                    lt_zones = await identify_demand_zones(
+                    lt_zones = await identify_ltf_zones(
                         lt_data,
                         request.ticker,
                         request.lower_interval,  # Pass the lower time_frame
