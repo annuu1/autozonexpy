@@ -40,7 +40,9 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
             base_max_body_percent=request.baseMaxBodyPercent,
             min_base_candles=request.minBaseCandles,
             max_base_candles=request.maxBaseCandles,
-            min_legout_movement=request.minLegoutMovement
+            min_legout_movement=request.minLegoutMovement,
+            min_legin_movement=request.minLeginMovement
+
         )
         logger.info(f"Found {len(higher_zones)} higher timeframe zones.")
 
