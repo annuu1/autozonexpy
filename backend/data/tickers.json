@@ -25,5 +25,8 @@
     "TCS", "TECHM", "TITAN", "TORNTPHARM", "TORNTPOWER",
     "TRENT", "TVSMOTOR", "UBL", "ULTRACEMCO", "UPL",
     "VEDL", "VOLTAS", "WIPRO", "ZEEL"
+  ],
+  "tickers1": [
+    "CELLO"
   ]
 }

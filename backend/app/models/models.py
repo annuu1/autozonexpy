@@ -30,6 +30,7 @@ class DemandZone(BaseModel):
     trade_score: float
     pattern: str
     timestamp: str
+    end_timestamp: str
     base_candles: int
     freshness: float
     parent_zone_id: Optional[str] = None

@@ -153,7 +153,7 @@ async def identify_demand_zones(
         pattern = "DBR" if is_leg_in_red else "RBR"
 
         zone = {
-            "zone_id": str(uuid.uuid4()),
+            "zone_id": f'{ticker}-{time_frame}-{leg_out.name.isoformat()}',
             "proximal_line": proximal_line,
             "distal_line": distal_line,
             "trade_score": trade_score,
@@ -339,7 +339,7 @@ async def identify_ltf_zones(
         pattern = "DBR" if is_leg_in_red else "RBR"
 
         zone = {
-            "zone_id": str(uuid.uuid4()),
+            "zone_id": f'{ticker}-{time_frame}-{leg_out.name.isoformat()}',
             "proximal_line": proximal_line,
             "distal_line": distal_line,
             "trade_score": trade_score,

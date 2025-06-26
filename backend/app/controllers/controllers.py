@@ -8,6 +8,7 @@ from dateutil import parser
 from app.models.models import DemandZone, MultiStockRequest
 import json
 from app.utils.ticker_loader import load_tickers_from_json
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,9 @@ async def health_check_controller():
 def load_tickers_from_json(file_path="data/tickers.json") -> List[str]:
     with open(file_path, "r") as f:
         data = json.load(f)
-    return data.get("tickers", [])
+    df = pd.read_csv("data/data.csv")
+    tickers = df['Symbol'].to_list()
+    return data.get("tickers", tickers)
 async def find_multi_demand_zones_controller(request: MultiStockRequest) -> Dict[str, List[Dict]]:
     try:
         tickers = load_tickers_from_json("data/tickers.json")

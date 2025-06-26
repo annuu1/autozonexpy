@@ -16,14 +16,15 @@ export default function CoincidingZoneTable({ zones }) {
 
   const sortedZones = filteredZones.sort((a, b) =>
     sortByTime === "asc"
-      ? new Date(a.timestamp) - new Date(b.timestamp)
-      : new Date(b.timestamp) - new Date(a.timestamp)
+      ? new Date(a.end_timestamp) - new Date(b.end_timestamp)
+      : new Date(b.end_timestamp) - new Date(a.end_timestamp)
   )
 
   const freshnessOptions = ["all", "0", "1.5", "3.0"]
 
   const downloadCSV = () => {
     const csvHeader = [
+      "Id",
       "Ticker",
       "Proximal",
       "Distal",
@@ -44,12 +45,13 @@ export default function CoincidingZoneTable({ zones }) {
         : ""
 
       return [
+        zone.zone_id,
         zone.ticker,
         zone.proximal_line.toFixed(2),
         zone.distal_line.toFixed(2),
         zone.trade_score.toFixed(2),
         zone.pattern,
-        new Date(zone.timestamp).toLocaleString(),
+        new Date(zone.end_timestamp).toLocaleString(),
         zone.base_candles,
         zone.freshness,
         numCoinciding,
@@ -130,7 +132,7 @@ export default function CoincidingZoneTable({ zones }) {
                 <td className="px-6 py-4 text-sm text-gray-900">{zone.distal_line.toFixed(2)}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">{zone.trade_score.toFixed(2)}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">{zone.pattern}</td>
-                <td className="px-6 py-4 text-sm text-gray-900">{new Date(zone.timestamp).toLocaleString()}</td>
+                <td className="px-6 py-4 text-sm text-gray-900">{new Date(zone.end_timestamp).toLocaleString()}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">{zone.base_candles}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">{zone.freshness}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">
@@ -185,7 +187,7 @@ export default function CoincidingZoneTable({ zones }) {
                     <td className="px-4 py-2">{lower.distal_line.toFixed(2)}</td>
                     <td className="px-4 py-2">{lower.trade_score.toFixed(2)}</td>
                     <td className="px-4 py-2">{lower.pattern}</td>
-                    <td className="px-4 py-2">{new Date(lower.timestamp).toLocaleString()}</td>
+                    <td className="px-4 py-2">{new Date(lower.end_timestamp).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
