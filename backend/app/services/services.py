@@ -262,7 +262,7 @@ async def identify_ltf_zones(
             and leg_out['Close'] > leg_in['High']
             and leg_out['Close'] > max(base_highs)  # New condition: close above all base candle highs
             and leg_out_body_percent >= legout_min_body_percent
-            and leg_out_movement_percent >= min_legout_movement
+            and leg_out_movement_percent >= min_leg_movement
         )
 
         if DEBUG:
