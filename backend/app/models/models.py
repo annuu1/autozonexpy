@@ -10,8 +10,13 @@ class StockRequest(BaseModel):
     higher_interval: str = "1d"
     lower_interval: str = "1h"
     leginMinBodyPercent: int = 50
+    ltf_leginMinBodyPercent: int = 50
     legoutMinBodyPercent: int = 50
+    ltf_legoutMinBodyPercent: int = 50
     baseMaxBodyPercent: int = 50
+    ltf_baseMaxBodyPercent: int = 50
+    minLegoutMovement: int = 7
+    ltf_minLegoutMovement: int = 3
     minBaseCandles: int = 1
     maxBaseCandles: int = 5
     detectLowerZones: Optional[bool] = True
@@ -35,8 +40,13 @@ class MultiStockRequest(BaseModel):
     higher_interval: str = "1d"
     lower_interval: str = "1h"
     leginMinBodyPercent: int = 50
+    ltf_leginMinBodyPercent: int = 50
     legoutMinBodyPercent: int = 50
+    ltf_legoutMinBodyPercent: int = 50
     baseMaxBodyPercent: int = 50
+    ltf_baseMaxBodyPercent: int = 50
+    minLegoutMovement: int = 7
+    ltf_minLegoutMovement: int = 3
     minBaseCandles: int = 1
     maxBaseCandles: int = 5
     detectLowerZones: Optional[bool] = True

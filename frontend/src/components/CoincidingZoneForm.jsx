@@ -7,24 +7,30 @@ function CoincidingZoneForm({ onSubmit }) {
   const oneYearAgo = new Date(today)
   oneYearAgo.setFullYear(today.getFullYear() - 1)
 
-  // Initial form state
+  // Initial form state aligned with StockRequest model
   const [formData, setFormData] = useState({
-  ticker: '',
-  start_date: oneYearAgo.toISOString().split('T')[0],
-  end_date: today.toISOString().split('T')[0],
-  higher_interval: '1d',
-  lower_interval: '1h',
-  leginMinBodyPercent: 50,
-  legoutMinBodyPercent: 50,
-  baseMaxBodyPercent: 47,
-  minBaseCandles: 1,
-  maxBaseCandles: 5,
-})
+    ticker: '',
+    start_date: oneYearAgo.toISOString().split('T')[0],
+    end_date: today.toISOString().split('T')[0],
+    higher_interval: '1d',
+    lower_interval: '1h',
+    leginMinBodyPercent: 50,
+    ltf_leginMinBodyPercent: 50,
+    legoutMinBodyPercent: 50,
+    ltf_legoutMinBodyPercent: 50,
+    baseMaxBodyPercent: 50,
+    ltf_baseMaxBodyPercent: 50,
+    minLegoutMovement: 7,
+    ltf_minLegoutMovement: 3,
+    minBaseCandles: 1,
+    maxBaseCandles: 5,
+    detectLowerZones: true,
+  })
 
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState({})
 
-  // Form field configurations for reusability
+  // Form field configurations aligned with StockRequest model
   const formFields = [
     {
       id: 'ticker',
@@ -47,46 +53,104 @@ function CoincidingZoneForm({ onSubmit }) {
       tooltip: 'Select the end date for historical data.',
     },
     {
-      id: 'interval',
-      label: 'Interval',
+      id: 'higher_interval',
+      label: 'Higher Timeframe Interval',
       type: 'select',
       options: [
-  { value: '1mo', label: 'Monthly' },
-  { value: '1wk', label: 'Weekly' },
-  { value: '1d', label: 'Daily' },
-  { value: '1h', label: 'Hourly' },
-  { value: '30m', label: '30 Minutes' },
-  { value: '15m', label: '15 Minutes' },
-  { value: '5m', label: '5 Minutes' },
-],
-      tooltip: 'Choose the time interval for candlestick data.',
+        { value: '1mo', label: 'Monthly' },
+        { value: '1wk', label: 'Weekly' },
+        { value: '1d', label: 'Daily' },
+        { value: '1h', label: 'Hourly' },
+        { value: '30m', label: '30 Minutes' },
+        { value: '15m', label: '15 Minutes' },
+        { value: '5m', label: '5 Minutes' },
+      ],
+      tooltip: 'Choose the higher timeframe interval.',
+    },
+    {
+      id: 'lower_interval',
+      label: 'Lower Timeframe Interval',
+      type: 'select',
+      options: [
+        { value: '1mo', label: 'Monthly' },
+        { value: '1wk', label: 'Weekly' },
+        { value: '1d', label: 'Daily' },
+        { value: '1h', label: 'Hourly' },
+        { value: '30m', label: '30 Minutes' },
+        { value: '15m', label: '15 Minutes' },
+        { value: '5m', label: '5 Minutes' },
+      ],
+      tooltip: 'Choose the lower timeframe interval for nested zone scan.',
     },
     {
       id: 'leginMinBodyPercent',
-      label: 'Leg-in Candle Body Min %',
+      label: 'Higher TF Leg-in Min Body %',
       type: 'number',
       min: 0,
       max: 100,
       step: 1,
-      tooltip: 'Minimum body size (% of range) for the leg-in candle.',
+      tooltip: 'Minimum body size (% of range) for higher timeframe leg-in candle.',
+    },
+    {
+      id: 'ltf_leginMinBodyPercent',
+      label: 'Lower TF Leg-in Min Body %',
+      type: 'number',
+      min: 0,
+      max: 100,
+      step: 1,
+      tooltip: 'Minimum body size (% of range) for lower timeframe leg-in candle.',
     },
     {
       id: 'legoutMinBodyPercent',
-      label: 'Leg-out Candle Body Min %',
+      label: 'Higher TF Leg-out Min Body %',
       type: 'number',
       min: 0,
       max: 100,
       step: 1,
-      tooltip: 'Minimum body size (% of range) for the leg-out candle.',
+      tooltip: 'Minimum body size (% of range) for higher timeframe leg-out candle.',
+    },
+    {
+      id: 'ltf_legoutMinBodyPercent',
+      label: 'Lower TF Leg-out Min Body %',
+      type: 'number',
+      min: 0,
+      max: 100,
+      step: 1,
+      tooltip: 'Minimum body size (% of range) for lower timeframe leg-out candle.',
     },
     {
       id: 'baseMaxBodyPercent',
-      label: 'Base Candle Maximum Body %',
+      label: 'Higher TF Base Max Body %',
       type: 'number',
       min: 0,
       max: 100,
       step: 1,
-      tooltip: 'Maximum body size (% of range) for base candles.',
+      tooltip: 'Maximum body size (% of range) for higher timeframe base candles.',
+    },
+    {
+      id: 'ltf_baseMaxBodyPercent',
+      label: 'Lower TF Base Max Body %',
+      type: 'number',
+      min: 0,
+      max: 100,
+      step: 1,
+      tooltip: 'Maximum body size (% of range) for lower timeframe base candles.',
+    },
+    {
+      id: 'minLegoutMovement',
+      label: 'Higher TF Min Leg-out Movement %',
+      type: 'number',
+      min: 0,
+      step: 1,
+      tooltip: 'Minimum movement (% from previous close) for higher timeframe leg-out candle.',
+    },
+    {
+      id: 'ltf_minLegoutMovement',
+      label: 'Lower TF Min Leg-out Movement %',
+      type: 'number',
+      min: 0,
+      step: 1,
+      tooltip: 'Minimum movement (% from previous close) for lower timeframe leg-out candle.',
     },
     {
       id: 'minBaseCandles',
@@ -105,42 +169,20 @@ function CoincidingZoneForm({ onSubmit }) {
       tooltip: 'Maximum number of base candles in the demand zone.',
     },
     {
-  id: 'higher_interval',
-  label: 'Higher Timeframe Interval',
-  type: 'select',
-  options: [
-  { value: '1mo', label: 'Monthly' },
-  { value: '1wk', label: 'Weekly' },
-  { value: '1d', label: 'Daily' },
-  { value: '1h', label: 'Hourly' },
-  { value: '30m', label: '30 Minutes' },
-  { value: '15m', label: '15 Minutes' },
-  { value: '5m', label: '5 Minutes' },
-],
-  tooltip: 'Choose the higher timeframe interval.',
-},
-{
-  id: 'lower_interval',
-  label: 'Lower Timeframe Interval',
-  type: 'select',
-  options: [
-    { value: '1mo', label: 'Monthly' },
-  { value: '1wk', label: 'Weekly' },
-  { value: '1d', label: 'Daily' },
-  { value: '1h', label: 'Hourly' },
-  { value: '30m', label: '30 Minutes' },
-  { value: '15m', label: '15 Minutes' },
-  { value: '5m', label: '5 Minutes' },
-  ],
-  tooltip: 'Choose the lower timeframe interval for nested zone scan.',
-},
-
+      id: 'detectLowerZones',
+      label: 'Detect Lower Timeframe Zones',
+      type: 'checkbox',
+      tooltip: 'Check to enable detection of zones in the lower timeframe.',
+    },
   ]
 
   // Handle input changes
   const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData({ ...formData, [name]: value })
+    const { name, value, type, checked } = e.target
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value,
+    })
     // Clear error for the field when user starts typing
     setErrors({ ...errors, [name]: '' })
   }
@@ -151,7 +193,7 @@ function CoincidingZoneForm({ onSubmit }) {
     if (!formData.ticker.trim()) {
       newErrors.ticker = 'Ticker is required'
     }
-    if (new Date(formData.start_date) > new Date(formData.end_date)) {
+    if (formData.start_date && formData.end_date && new Date(formData.start_date) > new Date(formData.end_date)) {
       newErrors.end_date = 'End date must be after start date'
     }
     if (formData.minBaseCandles > formData.maxBaseCandles) {
@@ -176,10 +218,16 @@ function CoincidingZoneForm({ onSubmit }) {
       ...formData,
       ticker: normalizedTicker,
       leginMinBodyPercent: parseInt(formData.leginMinBodyPercent, 10),
+      ltf_leginMinBodyPercent: parseInt(formData.ltf_leginMinBodyPercent, 10),
       legoutMinBodyPercent: parseInt(formData.legoutMinBodyPercent, 10),
+      ltf_legoutMinBodyPercent: parseInt(formData.ltf_legoutMinBodyPercent, 10),
       baseMaxBodyPercent: parseInt(formData.baseMaxBodyPercent, 10),
+      ltf_baseMaxBodyPercent: parseInt(formData.ltf_baseMaxBodyPercent, 10),
+      minLegoutMovement: parseInt(formData.minLegoutMovement, 10),
+      ltf_minLegoutMovement: parseInt(formData.ltf_minLegoutMovement, 10),
       minBaseCandles: parseInt(formData.minBaseCandles, 10),
       maxBaseCandles: parseInt(formData.maxBaseCandles, 10),
+      detectLowerZones: formData.detectLowerZones,
     }
 
     try {
@@ -220,6 +268,16 @@ function CoincidingZoneForm({ onSubmit }) {
                   </option>
                 ))}
               </select>
+            ) : field.type === 'checkbox' ? (
+              <input
+                type="checkbox"
+                id={field.id}
+                name={field.id}
+                checked={formData[field.id]}
+                onChange={handleChange}
+                className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
+                disabled={isLoading}
+              />
             ) : (
               <input
                 type={field.type}

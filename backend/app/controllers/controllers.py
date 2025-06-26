@@ -18,21 +18,29 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
         if not request.end_date:
             request.end_date = datetime.now().date()
 
-        logger.info(f"Processing {request.ticker} from {request.start_date} to {request.end_date}, higher interval: {request.higher_interval}, lower interval: {request.lower_interval}")
+        logger.info(f"Processing {request.ticker} from {request.start_date} to {request.end_date}, "
+                   f"higher interval: {request.higher_interval}, lower interval: {request.lower_interval}")
 
-        higher_data = fetch_stock_data(request.ticker, request.start_date, request.end_date, request.higher_interval)
+        higher_data = fetch_stock_data(
+            request.ticker,
+            request.start_date,
+            request.end_date,
+            request.higher_interval
+        )
         if higher_data is None:
             logger.warning(f"No data found for {request.ticker}, skipping.")
-            return [] 
+            return []
+
         higher_zones = await identify_demand_zones(
-            higher_data,
-            request.ticker,
-            request.higher_interval,  # Pass the higher time_frame
+            data=higher_data,
+            ticker=request.ticker,
+            time_frame=request.higher_interval,
             legin_min_body_percent=request.leginMinBodyPercent,
             legout_min_body_percent=request.legoutMinBodyPercent,
             base_max_body_percent=request.baseMaxBodyPercent,
             min_base_candles=request.minBaseCandles,
             max_base_candles=request.maxBaseCandles,
+            min_legout_movement=request.minLegoutMovement
         )
         logger.info(f"Found {len(higher_zones)} higher timeframe zones.")
 
@@ -44,8 +52,6 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
 
                 try:
                     start_date = parser.parse(h_zone["start_timestamp"]).date()
-
-                    # Find next higher timeframe candle timestamp
                     h_end_timestamp = parser.parse(h_zone["end_timestamp"])
                     next_candle_ts = higher_data.index[higher_data.index > h_end_timestamp]
                     if not next_candle_ts.empty:
@@ -53,31 +59,39 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
                     else:
                         end_date = request.end_date
 
-                    logger.info(f"Fetching lower timeframe data from {start_date} to {end_date} for higher zone {h_zone['start_timestamp']}")
+                    logger.info(f"Fetching lower timeframe data from {start_date} to {end_date} "
+                               f"for higher zone {h_zone['start_timestamp']}")
 
-                    lt_data = fetch_stock_data(request.ticker, start_date, end_date, request.lower_interval)
+                    lt_data = fetch_stock_data(
+                        request.ticker,
+                        start_date,
+                        end_date,
+                        request.lower_interval
+                    )
 
                     lt_zones = await identify_ltf_zones(
-                        lt_data,
-                        request.ticker,
-                        request.lower_interval,  # Pass the lower time_frame
-                        legin_min_body_percent=request.leginMinBodyPercent,
-                        legout_min_body_percent=request.legoutMinBodyPercent,
-                        base_max_body_percent=request.baseMaxBodyPercent,
+                        data=lt_data,
+                        ticker=request.ticker,
+                        time_frame=request.lower_interval,
+                        legin_min_body_percent=request.ltf_leginMinBodyPercent,
+                        legout_min_body_percent=request.ltf_legoutMinBodyPercent,
+                        base_max_body_percent=request.ltf_baseMaxBodyPercent,
                         min_base_candles=request.minBaseCandles,
                         max_base_candles=request.maxBaseCandles,
+                        min_legout_movement=request.ltf_minLegoutMovement
                     )
                     h_zone["coinciding_lower_zones"] = lt_zones
-                    logger.info(f"Found {len(lt_zones)} lower timeframe zones for higher zone starting at {h_zone['start_timestamp']}.")
+                    logger.info(f"Found {len(lt_zones)} lower timeframe zones for higher zone "
+                               f"starting at {h_zone['start_timestamp']}.")
 
                 except Exception as e:
-                    logger.error(f"Error processing lower timeframe zones for higher zone {h_zone['start_timestamp']}: {str(e)}")
+                    logger.error(f"Error processing lower timeframe zones for higher zone "
+                                f"{h_zone['start_timestamp']}: {str(e)}")
                     continue
         else:
             logger.info("Skipped lower timeframe demand zone detection as per request.")
 
-
-        logger.info(f"Mapped lower timeframe zones under higher timeframe zones.")
+        logger.info("Mapped lower timeframe zones under higher timeframe zones.")
         higher_zone_models = [DemandZone(**zone) for zone in higher_zones]
 
         return higher_zone_models
@@ -87,7 +101,6 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
-
 
 
 async def health_check_controller():

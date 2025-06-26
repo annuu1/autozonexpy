@@ -41,6 +41,7 @@ async def identify_demand_zones(
     base_max_body_percent: int = 50,
     min_base_candles: int = 1,
     max_base_candles: int = 5,
+    min_legout_movement: int = 4,
 ) -> List[Dict]:
     DEBUG = True  # ⬅️ Turn to False in production
     demand_zones = []
@@ -186,7 +187,8 @@ async def identify_ltf_zones(
     DEBUG = True  # ⬅️ Turn to False in production
     demand_zones = []
     i = 0
-    print(data)
+    if DEBUG:
+        print(data)
     while i < len(data) - 2:
         leg_in = data.iloc[i]
         candle_range = leg_in['High'] - leg_in['Low']
