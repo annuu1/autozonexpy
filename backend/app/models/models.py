@@ -17,6 +17,8 @@ class StockRequest(BaseModel):
     ltf_baseMaxBodyPercent: int = 50
     minLegoutMovement: int = 7
     ltf_minLegoutMovement: int = 3
+    minLeginMovement: int = 7
+    ltf_minLeginMovement: int = 3
     minBaseCandles: int = 1
     maxBaseCandles: int = 5
     detectLowerZones: Optional[bool] = True

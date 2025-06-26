@@ -42,6 +42,7 @@ async def identify_demand_zones(
     min_base_candles: int = 1,
     max_base_candles: int = 5,
     min_legout_movement: int = 4,
+    min_legin_movement: int = 4,
 ) -> List[Dict]:
     DEBUG = True  # ⬅️ Turn to False in production
     demand_zones = []
@@ -183,7 +184,11 @@ async def identify_ltf_zones(
     min_base_candles: int = 1,
     max_base_candles: int = 5,
     min_legout_movement: int = 4,
+    min_legin_movement: int = 4,
 ) -> List[Dict]:
+
+    min_leg_movement = min_legin_movement
+
     DEBUG = True  # ⬅️ Turn to False in production
     demand_zones = []
     i = 0
@@ -194,14 +199,16 @@ async def identify_ltf_zones(
         candle_range = leg_in['High'] - leg_in['Low']
         body = abs(leg_in['Close'] - leg_in['Open'])
         body_percent = (body / candle_range * 100) if candle_range > 0 else 0
+        legin_movement_percent = body/leg_in['Close']*100
 
         if DEBUG:
             print(f"\n🟠 Checking candle at {leg_in.name}")
             print(f"High: {leg_in['High']}, Low: {leg_in['Low']}, Open: {leg_in['Open']}, Close: {leg_in['Close']}")
             print(f"Body: {body}, Range: {candle_range}, Body%: {body_percent:.2f}%")
+            print(f"Movement: {legin_movement_percent}")
 
-        is_leg_in_red = leg_in['Close'] < leg_in['Open'] and body_percent >= legin_min_body_percent
-        is_leg_in_green = leg_in['Close'] > leg_in['Open'] and body_percent >= legin_min_body_percent
+        is_leg_in_red = leg_in['Close'] < leg_in['Open'] and body_percent >= legin_min_body_percent and legin_movement_percent >= min_leg_movement
+        is_leg_in_green = leg_in['Close'] > leg_in['Open'] and body_percent >= legin_min_body_percent and legin_movement_percent >= min_leg_movement
         if not (is_leg_in_red or is_leg_in_green):
             if DEBUG:
                 print("❌ Not a valid leg-in candle.\n")
@@ -249,11 +256,13 @@ async def identify_ltf_zones(
         leg_out_body = abs(leg_out['Close'] - leg_out['Open'])
         leg_out_body_percent = (leg_out_body / leg_out_range * 100) if leg_out_range > 0 else 0
         base_highs = [c['High'] for c in base_candles]
+        leg_out_movement_percent = leg_out_body/leg_out['Close']*100
         is_leg_out_green = (
             leg_out['Close'] > leg_out['Open']
             and leg_out['Close'] > leg_in['High']
             and leg_out['Close'] > max(base_highs)  # New condition: close above all base candle highs
             and leg_out_body_percent >= legout_min_body_percent
+            and leg_out_movement_percent >= min_legout_movement
         )
 
         if DEBUG:
@@ -261,6 +270,7 @@ async def identify_ltf_zones(
             print(f"Close: {leg_out['Close']}, Open: {leg_out['Open']}, Body%: {leg_out_body_percent:.2f}%")
             print(f"Above Leg-in High: {leg_out['Close'] > leg_in['High']}")
             print(f"Above Base Highs: {leg_out['Close'] > max(base_highs)}")
+            print(f"Movement: {leg_out_movement_percent}")
 
         if not is_leg_out_green:
             if DEBUG:

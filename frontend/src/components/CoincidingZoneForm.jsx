@@ -20,6 +20,8 @@ function CoincidingZoneForm({ onSubmit }) {
     ltf_legoutMinBodyPercent: 50,
     baseMaxBodyPercent: 50,
     ltf_baseMaxBodyPercent: 50,
+    minLeginMovement: 7,
+    ltf_minLeginMovement: 3,
     minLegoutMovement: 7,
     ltf_minLegoutMovement: 3,
     minBaseCandles: 1,
@@ -32,7 +34,9 @@ function CoincidingZoneForm({ onSubmit }) {
 
   // Form field configurations aligned with StockRequest model
   const formFields = [
+    // Common Parameters
     {
+      section: 'Common Parameters',
       id: 'ticker',
       label: 'Ticker',
       type: 'text',
@@ -41,18 +45,22 @@ function CoincidingZoneForm({ onSubmit }) {
       tooltip: 'Enter an Indian stock ticker (e.g., RELIANCE). .NS will be added automatically.',
     },
     {
+      section: 'Common Parameters',
       id: 'start_date',
       label: 'Start Date',
       type: 'date',
       tooltip: 'Select the start date for historical data.',
     },
     {
+      section: 'Common Parameters',
       id: 'end_date',
       label: 'End Date',
       type: 'date',
       tooltip: 'Select the end date for historical data.',
     },
+    // Higher Timeframe Settings
     {
+      section: 'Higher Timeframe Settings',
       id: 'higher_interval',
       label: 'Higher Timeframe Interval',
       type: 'select',
@@ -68,6 +76,74 @@ function CoincidingZoneForm({ onSubmit }) {
       tooltip: 'Choose the higher timeframe interval.',
     },
     {
+      section: 'Higher Timeframe Settings',
+      id: 'leginMinBodyPercent',
+      label: 'Leg-in Min Body %',
+      type: 'number',
+      min: 0,
+      max: 100,
+      step: 1,
+      tooltip: 'Minimum body size (% of range) for higher timeframe leg-in candle.',
+    },
+    {
+      section: 'Higher Timeframe Settings',
+      id: 'legoutMinBodyPercent',
+      label: 'Leg-out Min Body %',
+      type: 'number',
+      min: 0,
+      max: 100,
+      step: 1,
+      tooltip: 'Minimum body size (% of range) for higher timeframe leg-out candle.',
+    },
+    {
+      section: 'Higher Timeframe Settings',
+      id: 'baseMaxBodyPercent',
+      label: 'Base Max Body %',
+      type: 'number',
+      min: 0,
+      max: 100,
+      step: 1,
+      tooltip: 'Maximum body size (% of range) for higher timeframe base candles.',
+    },
+    {
+      section: 'Higher Timeframe Settings',
+      id: 'minLeginMovement',
+      label: 'Min Leg-in Movement %',
+      type: 'number',
+      min: 0,
+      step: 1,
+      tooltip: 'Minimum movement (% from previous close) for higher timeframe leg-in candle.',
+    },
+    {
+      section: 'Higher Timeframe Settings',
+      id: 'minLegoutMovement',
+      label: 'Min Leg-out Movement %',
+      type: 'number',
+      min: 0,
+      step: 1,
+      tooltip: 'Minimum movement (% from previous close) for higher timeframe leg-out candle.',
+    },
+    {
+      section: 'Higher Timeframe Settings',
+      id: 'minBaseCandles',
+      label: 'Min Number of Base Candles',
+      type: 'number',
+      min: 1,
+      step: 1,
+      tooltip: 'Minimum number of base candles in the demand zone.',
+    },
+    {
+      section: 'Higher Timeframe Settings',
+      id: 'maxBaseCandles',
+      label: 'Max Number of Base Candles',
+      type: 'number',
+      min: 1,
+      step: 1,
+      tooltip: 'Maximum number of base candles in the demand zone.',
+    },
+    // Lower Timeframe Settings
+    {
+      section: 'Lower Timeframe Settings',
       id: 'lower_interval',
       label: 'Lower Timeframe Interval',
       type: 'select',
@@ -83,17 +159,9 @@ function CoincidingZoneForm({ onSubmit }) {
       tooltip: 'Choose the lower timeframe interval for nested zone scan.',
     },
     {
-      id: 'leginMinBodyPercent',
-      label: 'Higher TF Leg-in Min Body %',
-      type: 'number',
-      min: 0,
-      max: 100,
-      step: 1,
-      tooltip: 'Minimum body size (% of range) for higher timeframe leg-in candle.',
-    },
-    {
+      section: 'Lower Timeframe Settings',
       id: 'ltf_leginMinBodyPercent',
-      label: 'Lower TF Leg-in Min Body %',
+      label: 'Leg-in Min Body %',
       type: 'number',
       min: 0,
       max: 100,
@@ -101,17 +169,9 @@ function CoincidingZoneForm({ onSubmit }) {
       tooltip: 'Minimum body size (% of range) for lower timeframe leg-in candle.',
     },
     {
-      id: 'legoutMinBodyPercent',
-      label: 'Higher TF Leg-out Min Body %',
-      type: 'number',
-      min: 0,
-      max: 100,
-      step: 1,
-      tooltip: 'Minimum body size (% of range) for higher timeframe leg-out candle.',
-    },
-    {
+      section: 'Lower Timeframe Settings',
       id: 'ltf_legoutMinBodyPercent',
-      label: 'Lower TF Leg-out Min Body %',
+      label: 'Leg-out Min Body %',
       type: 'number',
       min: 0,
       max: 100,
@@ -119,17 +179,9 @@ function CoincidingZoneForm({ onSubmit }) {
       tooltip: 'Minimum body size (% of range) for lower timeframe leg-out candle.',
     },
     {
-      id: 'baseMaxBodyPercent',
-      label: 'Higher TF Base Max Body %',
-      type: 'number',
-      min: 0,
-      max: 100,
-      step: 1,
-      tooltip: 'Maximum body size (% of range) for higher timeframe base candles.',
-    },
-    {
+      section: 'Lower Timeframe Settings',
       id: 'ltf_baseMaxBodyPercent',
-      label: 'Lower TF Base Max Body %',
+      label: 'Base Max Body %',
       type: 'number',
       min: 0,
       max: 100,
@@ -137,38 +189,25 @@ function CoincidingZoneForm({ onSubmit }) {
       tooltip: 'Maximum body size (% of range) for lower timeframe base candles.',
     },
     {
-      id: 'minLegoutMovement',
-      label: 'Higher TF Min Leg-out Movement %',
+      section: 'Lower Timeframe Settings',
+      id: 'ltf_minLeginMovement',
+      label: 'Min Leg-in Movement %',
       type: 'number',
       min: 0,
       step: 1,
-      tooltip: 'Minimum movement (% from previous close) for higher timeframe leg-out candle.',
+      tooltip: 'Minimum movement (% from previous close) for lower timeframe leg-in candle.',
     },
     {
+      section: 'Lower Timeframe Settings',
       id: 'ltf_minLegoutMovement',
-      label: 'Lower TF Min Leg-out Movement %',
+      label: 'Min Leg-out Movement %',
       type: 'number',
       min: 0,
       step: 1,
       tooltip: 'Minimum movement (% from previous close) for lower timeframe leg-out candle.',
     },
     {
-      id: 'minBaseCandles',
-      label: 'Min Number of Base Candles',
-      type: 'number',
-      min: 1,
-      step: 1,
-      tooltip: 'Minimum number of base candles in the demand zone.',
-    },
-    {
-      id: 'maxBaseCandles',
-      label: 'Max Number of Base Candles',
-      type: 'number',
-      min: 1,
-      step: 1,
-      tooltip: 'Maximum number of base candles in the demand zone.',
-    },
-    {
+      section: 'Lower Timeframe Settings',
       id: 'detectLowerZones',
       label: 'Detect Lower Timeframe Zones',
       type: 'checkbox',
@@ -223,6 +262,8 @@ function CoincidingZoneForm({ onSubmit }) {
       ltf_legoutMinBodyPercent: parseInt(formData.ltf_legoutMinBodyPercent, 10),
       baseMaxBodyPercent: parseInt(formData.baseMaxBodyPercent, 10),
       ltf_baseMaxBodyPercent: parseInt(formData.ltf_baseMaxBodyPercent, 10),
+      minLeginMovement: parseInt(formData.minLeginMovement, 10),
+      ltf_minLeginMovement: parseInt(formData.ltf_minLeginMovement, 10),
       minLegoutMovement: parseInt(formData.minLegoutMovement, 10),
       ltf_minLegoutMovement: parseInt(formData.ltf_minLegoutMovement, 10),
       minBaseCandles: parseInt(formData.minBaseCandles, 10),
@@ -240,86 +281,103 @@ function CoincidingZoneForm({ onSubmit }) {
     }
   }
 
+  // Group fields by section
+  const sections = [
+    { title: 'Common Parameters', fields: formFields.filter((field) => field.section === 'Common Parameters') },
+    { title: 'Higher Timeframe Settings', fields: formFields.filter((field) => field.section === 'Higher Timeframe Settings') },
+    { title: 'Lower Timeframe Settings', fields: formFields.filter((field) => field.section === 'Lower Timeframe Settings') },
+  ]
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {formFields.map((field) => (
-          <div key={field.id} className="relative">
-            <label htmlFor={field.id} className="block text-sm font-medium text-gray-700">
-              {field.label}
-              {field.tooltip && (
-                <span className="ml-1 text-gray-500 cursor-help" title={field.tooltip}>
-                  ⓘ
-                </span>
-              )}
-            </label>
-            {field.type === 'select' ? (
-              <select
-                id={field.id}
-                name={field.id}
-                value={formData[field.id]}
-                onChange={handleChange}
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
-                disabled={isLoading}
-              >
-                {field.options.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            ) : field.type === 'checkbox' ? (
-              <input
-                type="checkbox"
-                id={field.id}
-                name={field.id}
-                checked={formData[field.id]}
-                onChange={handleChange}
-                className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
-                disabled={isLoading}
-              />
-            ) : (
-              <input
-                type={field.type}
-                id={field.id}
-                name={field.id}
-                value={formData[field.id]}
-                onChange={handleChange}
-                required={field.required}
-                placeholder={field.placeholder}
-                min={field.min}
-                max={field.max}
-                step={field.step}
-                className={`mt-1 block w-full p-2 border ${
-                  errors[field.id] ? 'border-red-500' : 'border-gray-300'
-                } rounded-md focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50`}
-                disabled={isLoading}
-              />
-            )}
-            {errors[field.id] && (
-              <p className="mt-1 text-sm text-red-600">{errors[field.id]}</p>
-            )}
+    <div className="max-w-3xl mx-auto p-6 bg-white shadow-md rounded-lg">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">Demand Zone Scanner</h2>
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {sections.map((section) => (
+          <div key={section.title} className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-700 border-b pb-2">{section.title}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {section.fields.map((field) => (
+                <div key={field.id} className="relative">
+                  <label htmlFor={field.id} className="block text-sm font-medium text-gray-700">
+                    {field.label}
+                    {field.tooltip && (
+                      <span className="ml-1 text-gray-500 cursor-help" title={field.tooltip}>
+                        ⓘ
+                      </span>
+                    )}
+                  </label>
+                  {field.type === 'select' ? (
+                    <select
+                      id={field.id}
+                      name={field.id}
+                      value={formData[field.id]}
+                      onChange={handleChange}
+                      className="mt-1 block w-full p-2.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 transition-colors"
+                      disabled={isLoading}
+                    >
+                      {field.options.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : field.type === 'checkbox' ? (
+                    <div className="mt-2">
+                      <input
+                        type="checkbox"
+                        id={field.id}
+                        name={field.id}
+                        checked={formData[field.id]}
+                        onChange={handleChange}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  ) : (
+                    <input
+                      type={field.type}
+                      id={field.id}
+                      name={field.id}
+                      value={formData[field.id]}
+                      onChange={handleChange}
+                      required={field.required}
+                      placeholder={field.placeholder}
+                      min={field.min}
+                      max={field.max}
+                      step={field.step}
+                      className={`mt-1 block w-full p-2.5 border ${
+                        errors[field.id] ? 'border-red-500' : 'border-gray-300'
+                      } rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 transition-colors`}
+                      disabled={isLoading}
+                    />
+                  )}
+                  {errors[field.id] && (
+                    <p className="mt-1 text-sm text-red-600">{errors[field.id]}</p>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         ))}
-      </div>
-      <button
-        type="submit"
-        className="w-full bg-indigo-600 text-white p-3 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed transition-colors"
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <span className="flex items-center justify-center">
-            <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
-            </svg>
-            Loading...
-          </span>
-        ) : (
-          'Find Demand Zones'
-        )}
-      </button>
-    </form>
+        <button
+          type="submit"
+          className="w-full bg-indigo-600 text-white p-3 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed transition-colors duration-200"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <span className="flex items-center justify-center">
+              <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
+              </svg>
+              Loading...
+            </span>
+          ) : (
+            'Find Demand Zones'
+          )}
+        </button>
+      </form>
+    </div>
   )
 }
 

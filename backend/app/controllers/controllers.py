@@ -78,7 +78,8 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
                         base_max_body_percent=request.ltf_baseMaxBodyPercent,
                         min_base_candles=request.minBaseCandles,
                         max_base_candles=request.maxBaseCandles,
-                        min_legout_movement=request.ltf_minLegoutMovement
+                        min_legout_movement=request.ltf_minLegoutMovement,
+                        min_legin_movement=request.ltf_minLeginMovement
                     )
                     h_zone["coinciding_lower_zones"] = lt_zones
                     logger.info(f"Found {len(lt_zones)} lower timeframe zones for higher zone "
