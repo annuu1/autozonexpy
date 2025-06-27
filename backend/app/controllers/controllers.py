@@ -1,14 +1,15 @@
 import logging
 from fastapi import HTTPException
 from datetime import datetime, timedelta
-from app.models.models import StockRequest, DemandZone
+from app.models.models import StockRequest, DemandZone, MultiStockRequest
 from app.services.services import fetch_stock_data, identify_demand_zones, identify_ltf_zones
 from typing import List, Dict
 from dateutil import parser
-from app.models.models import DemandZone, MultiStockRequest
 import json
 from app.utils.ticker_loader import load_tickers_from_json
 import pandas as pd
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,6 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
             max_base_candles=request.maxBaseCandles,
             min_legout_movement=request.minLegoutMovement,
             min_legin_movement=request.minLeginMovement
-
         )
         logger.info(f"Found {len(higher_zones)} higher timeframe zones.")
 
@@ -106,7 +106,6 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
         logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
-
 async def health_check_controller():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
@@ -116,43 +115,62 @@ def load_tickers_from_json(file_path="data/tickers.json") -> List[str]:
     df = pd.read_csv("data/data.csv")
     tickers = df['Symbol'].to_list()
     return data.get("tickers", tickers)
+
 async def find_multi_demand_zones_controller(request: MultiStockRequest) -> Dict[str, List[Dict]]:
     try:
         tickers = load_tickers_from_json("data/tickers.json")
-        logger.info(f"Loaded tickers: {tickers}")
+        logger.info(f"Loaded {len(tickers)} tickers")
 
         all_results = {}
+        max_concurrent_tasks = 50  # Adjust based on system resources and API rate limits
 
-        for ticker in tickers:
+        async def process_ticker(ticker: str) -> tuple:
             logger.info(f"Processing ticker: {ticker}")
+            try:
+                stock_request = StockRequest(
+                    ticker=ticker,
+                    start_date=request.start_date,
+                    end_date=request.end_date,
+                    higher_interval=request.higher_interval,
+                    lower_interval=request.lower_interval,
+                    leginMinBodyPercent=request.leginMinBodyPercent,
+                    ltf_leginMinBodyPercent=request.ltf_leginMinBodyPercent,
+                    legoutMinBodyPercent=request.legoutMinBodyPercent,
+                    ltf_legoutMinBodyPercent=request.ltf_legoutMinBodyPercent,
+                    baseMaxBodyPercent=request.baseMaxBodyPercent,
+                    ltf_baseMaxBodyPercent=request.ltf_baseMaxBodyPercent,
+                    minLegoutMovement=request.minLegoutMovement,
+                    ltf_minLegoutMovement=request.ltf_minLegoutMovement,
+                    minLeginMovement=request.minLeginMovement,
+                    ltf_minLeginMovement=request.ltf_minLeginMovement,
+                    minBaseCandles=request.minBaseCandles,
+                    maxBaseCandles=request.maxBaseCandles,
+                    detectLowerZones=request.detectLowerZones,
+                )
+                result = await find_demand_zones_controller(stock_request)
+                return ticker, result
+            except Exception as e:
+                logger.error(f"Error processing ticker {ticker}: {str(e)}")
+                return ticker, []
 
-            stock_request = StockRequest(
-                ticker=ticker,
-                start_date=request.start_date,
-                end_date=request.end_date,
-                higher_interval=request.higher_interval,
-                lower_interval=request.lower_interval,
-                leginMinBodyPercent=request.leginMinBodyPercent,
-                ltf_leginMinBodyPercent=request.ltf_leginMinBodyPercent,
-                legoutMinBodyPercent=request.legoutMinBodyPercent,
-                ltf_legoutMinBodyPercent=request.ltf_legoutMinBodyPercent,
-                baseMaxBodyPercent=request.baseMaxBodyPercent,
-                ltf_baseMaxBodyPercent=request.ltf_baseMaxBodyPercent,
-                minLegoutMovement=request.minLegoutMovement,
-                ltf_minLegoutMovement=request.ltf_minLegoutMovement,
-                minLeginMovement=request.minLeginMovement,
-                ltf_minLeginMovement=request.ltf_minLeginMovement,
-                minBaseCandles=request.minBaseCandles,
-                maxBaseCandles=request.maxBaseCandles,
-                detectLowerZones=request.detectLowerZones,
-            )
+        # Use ThreadPoolExecutor for parallel processing
+        with ThreadPoolExecutor(max_workers=max_concurrent_tasks) as executor:
+            loop = asyncio.get_event_loop()
+            tasks = [
+                loop.run_in_executor(executor, lambda t=ticker: asyncio.run(process_ticker(t)))
+                for ticker in tickers
+            ]
+            # Process tasks in chunks to avoid overwhelming the event loop
+            for i in range(0, len(tasks), max_concurrent_tasks):
+                chunk = tasks[i:i + max_concurrent_tasks]
+                results = await asyncio.gather(*chunk, return_exceptions=True)
+                for ticker, result in results:
+                    if not isinstance(result, Exception):
+                        all_results[ticker] = result
 
-            result = await find_demand_zones_controller(stock_request)
-            all_results[ticker] = result
-
+        logger.info(f"Completed processing for {len(all_results)} tickers")
         return all_results
 
     except Exception as e:
         logger.error(f"Error processing multi ticker demand zones: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
-
