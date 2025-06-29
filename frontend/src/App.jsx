@@ -19,89 +19,106 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-100 p-4">
-        <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">
-          GTF Demand Zone Finder
-        </h1>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-4xl font-bold text-center mb-8 text-gray-800 bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+            GTF Demand Zone Finder
+          </h1>
 
-        {/* Navigation */}
-        <div className="flex justify-center gap-6 mb-8">
-          <Link to="/demand-zones" className="text-blue-600 hover:underline">
-            Single Demand Zones
-          </Link>
-          <Link
-            to="/coinciding-zones"
-            className="text-blue-600 hover:underline"
-          >
-            Coinciding Zones
-          </Link>
-          <Link
-            to="/all-demand-zones"
-            className="text-blue-600 hover:underline"
-          >
-            Multi Ticker Zones
-          </Link>
+          {/* Enhanced Navigation */}
+          <div className="flex flex-wrap justify-center gap-4 mb-8">
+            <Link 
+              to="/demand-zones" 
+              className="px-6 py-3 bg-white/80 backdrop-blur-sm text-blue-700 font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-white/90 transition-all duration-200 border border-blue-200"
+            >
+              Single Demand Zones
+            </Link>
+            <Link
+              to="/coinciding-zones"
+              className="px-6 py-3 bg-white/80 backdrop-blur-sm text-indigo-700 font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-white/90 transition-all duration-200 border border-indigo-200"
+            >
+              Coinciding Zones
+            </Link>
+            <Link
+              to="/all-demand-zones"
+              className="px-6 py-3 bg-white/80 backdrop-blur-sm text-purple-700 font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-white/90 transition-all duration-200 border border-purple-200"
+            >
+              Multi Ticker Zones
+            </Link>
+            <Link
+              to="/stock-chart"
+              className="px-6 py-3 bg-white/80 backdrop-blur-sm text-green-700 font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-white/90 transition-all duration-200 border border-green-200"
+            >
+              Zone Charts
+            </Link>
+          </div>
+
+          {/* Routes */}
+          <Routes>
+            <Route
+              path="/demand-zones"
+              element={
+                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+                  <DemandZoneForm onSubmit={handleFormSubmit} />
+                  {error && (
+                    <div className="mt-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-xl border border-red-200">
+                      {error}
+                    </div>
+                  )}
+                  <DemandZoneTable zones={zones} />
+                </div>
+              }
+            />
+
+            <Route
+              path="/coinciding-zones"
+              element={
+                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+                  <CoincidingZoneForm onSubmit={handleFormSubmit} />
+                  {error && (
+                    <div className="mt-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-xl border border-red-200">
+                      {error}
+                    </div>
+                  )}
+                  <CoincidingZoneTable zones={zones} />
+                </div>
+              }
+            />
+
+            <Route
+              path="/all-demand-zones"
+              element={
+                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+                  <MultiDemandZoneForm onZonesFetched={setZones} />
+                  <MultiDemandZoneTable zones={zones} />
+                </div>
+              }
+            />
+
+            <Route
+              path="/stock-chart"
+              element={
+                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+                  <ZoneCharts />
+                </div>
+              }
+            />
+
+            <Route
+              path="*"
+              element={
+                <div className="text-center mt-16 bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg">
+                  <div className="text-gray-500 text-xl mb-4">
+                    Welcome to GTF Demand Zone Finder
+                  </div>
+                  <p className="text-gray-400">
+                    Please select a route from the navigation above to get started.
+                  </p>
+                </div>
+              }
+            />
+          </Routes>
         </div>
-
-        {/* Routes */}
-        <Routes>
-          <Route
-            path="/demand-zones"
-            element={
-              <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl mx-auto">
-                <DemandZoneForm onSubmit={handleFormSubmit} />
-                {error && (
-                  <div className="mt-4 p-4 bg-red-100 text-red-700 rounded-md">
-                    {error}
-                  </div>
-                )}
-                <DemandZoneTable zones={zones} />
-              </div>
-            }
-          />
-
-          <Route
-            path="/coinciding-zones"
-            element={
-              <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl mx-auto">
-                <CoincidingZoneForm onSubmit={handleFormSubmit} />
-                {error && (
-                  <div className="mt-4 p-4 bg-red-100 text-red-700 rounded-md">
-                    {error}
-                  </div>
-                )}
-                <CoincidingZoneTable zones={zones} />
-              </div>
-            }
-          />
-
-          <Route
-            path="/all-demand-zones"
-            element={
-              <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl mx-auto">
-                <MultiDemandZoneForm onZonesFetched={setZones} />
-                <MultiDemandZoneTable zones={zones} />
-              </div>
-            }
-          />
-
-          <Route
-            path="*"
-            element={
-              <div className="text-center mt-16 text-gray-500 text-xl">
-                Please select a route from above.
-              </div>
-            }
-          />
-          <Route
-            path="/stock-chart"
-            element={
-              <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl mx-auto">
-                <ZoneCharts />
-              </div>
-            }
-          />
-        </Routes>
       </div>
     </BrowserRouter>
   );

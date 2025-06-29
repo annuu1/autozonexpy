@@ -1,13 +1,14 @@
-'use client';
-
-import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
+import React, { useEffect, useRef, useState } from 'react';
+import { createChart, ColorType } from 'lightweight-charts';
 import { getOhlcData } from '../services/api';
 
-const StockChart = ({ ticker="abb", interval = '1d', selectedZone = null }) => {
+const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zones = [] }) => {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candlestickSeriesRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
     console.log('Chart component mounted with ticker:', ticker);
@@ -17,24 +18,41 @@ const StockChart = ({ ticker="abb", interval = '1d', selectedZone = null }) => {
     // Create chart instance
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: 'white' },
-        textColor: 'black',
+        background: { type: ColorType.Solid, color: 'rgba(255, 255, 255, 0.9)' },
+        textColor: '#333',
       },
       width: chartContainerRef.current.clientWidth,
-      height: 400,
+      height: 500,
       grid: {
-        vertLines: { color: '#e0e0e0' },
-        horzLines: { color: '#e0e0e0' },
+        vertLines: { color: 'rgba(197, 203, 206, 0.5)' },
+        horzLines: { color: 'rgba(197, 203, 206, 0.5)' },
       },
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
+        borderColor: '#D1D4DC',
+      },
+      rightPriceScale: {
+        borderColor: '#D1D4DC',
+      },
+      crosshair: {
+        mode: 1,
+        vertLine: {
+          color: '#758696',
+          width: 1,
+          style: 2,
+        },
+        horzLine: {
+          color: '#758696',
+          width: 1,
+          style: 2,
+        },
       },
     });
     chartRef.current = chart;
 
     // Add candlestick series
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
+    const candlestickSeries = chart.addCandlestickSeries({
       upColor: '#26a69a',
       downColor: '#ef5350',
       borderVisible: false,
@@ -43,29 +61,23 @@ const StockChart = ({ ticker="abb", interval = '1d', selectedZone = null }) => {
     });
     candlestickSeriesRef.current = candlestickSeries;
 
-    // Add horizontal price line at 6069
-candlestickSeries.createPriceLine({
-  price: 6069,
-  color: '#FF9800',
-  lineWidth: 1,
-  lineStyle: 0, // 0 = Solid, 1 = Dotted, 2 = Dashed, 3 = LargeDashed, 4 = SparseDotted
-  axisLabelVisible: true,
-  title: '6069 ₹ Level',
-});
-
-
-
     // Fetch and set candlestick data
     const fetchAndSetData = async () => {
       try {
-        const ohlcData = await getOhlcData(ticker, interval, "2025-01-01", "2025-06-29");
+        setIsLoading(true);
+        setError(null);
+        
+        const startDate = "2024-01-01";
+        const endDate = new Date().toISOString().split('T')[0];
+        
+        const ohlcData = await getOhlcData(ticker, interval, startDate, endDate);
         console.log('Raw backend OHLC data:', ohlcData);
+        
         if (!Array.isArray(ohlcData) || ohlcData.length === 0) {
-          console.error('No OHLC data returned from backend:', ohlcData);
-          return;
+          throw new Error('No OHLC data returned from backend');
         }
-        const chartData = ohlcData.map((data) => {
-          // Convert ISO string (e.g. '2024-12-31T18:30:00.000Z') to 'YYYY-MM-DD'
+
+        const processedData = ohlcData.map((data) => {
           let time;
           if (typeof data.Date === 'string') {
             time = data.Date.slice(0, 10); // 'YYYY-MM-DD'
@@ -79,41 +91,115 @@ candlestickSeries.createPriceLine({
             low: data.Low,
             close: data.Close,
           };
-        }).filter(d => d.time && typeof d.open === 'number' && typeof d.high === 'number' && typeof d.low === 'number' && typeof d.close === 'number');
-        if (chartData.length === 0) {
-          console.error('No valid chart data after mapping:', chartData);
-          return;
+        }).filter(d => 
+          d.time && 
+          typeof d.open === 'number' && 
+          typeof d.high === 'number' && 
+          typeof d.low === 'number' && 
+          typeof d.close === 'number'
+        );
+
+        if (processedData.length === 0) {
+          throw new Error('No valid chart data after processing');
         }
-        candlestickSeries.setData(chartData);
-        console.log('Mapped chart data:', chartData);
+
+        candlestickSeries.setData(processedData);
+        setChartData(processedData);
+        console.log('Mapped chart data:', processedData);
+
+        // Add zone lines if zones are provided
+        if (zones && zones.length > 0) {
+          zones.forEach((zone, index) => {
+            // Add proximal line
+            candlestickSeries.createPriceLine({
+              price: zone.proximal_line,
+              color: zone.pattern === 'RBR' ? '#26a69a' : '#ef5350',
+              lineWidth: 2,
+              lineStyle: 0,
+              axisLabelVisible: true,
+              title: `${zone.pattern} Proximal (${zone.freshness})`,
+            });
+
+            // Add distal line
+            candlestickSeries.createPriceLine({
+              price: zone.distal_line,
+              color: zone.pattern === 'RBR' ? '#26a69a' : '#ef5350',
+              lineWidth: 1,
+              lineStyle: 1,
+              axisLabelVisible: true,
+              title: `${zone.pattern} Distal`,
+            });
+          });
+        }
+
+        // Fit content
+        chart.timeScale().fitContent();
+        
       } catch (error) {
         console.error('Error fetching OHLC data:', error);
+        setError(error.message);
+      } finally {
+        setIsLoading(false);
       }
     };
-    fetchAndSetData();
 
-    // Fit content
-    chart.timeScale().fitContent();
+    fetchAndSetData();
 
     // Resize handler
     const handleResize = () => {
-      chart.applyOptions({
-        width: chartContainerRef.current.clientWidth,
-      });
+      if (chart && chartContainerRef.current) {
+        chart.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+        });
+      }
     };
+    
     window.addEventListener('resize', handleResize);
 
     // Cleanup on unmount
     return () => {
       console.log('Cleaning up chart');
       window.removeEventListener('resize', handleResize);
-      chart.remove();
+      if (chart) {
+        chart.remove();
+      }
     };
-  }, [ticker, interval, selectedZone]);
+  }, [ticker, interval, zones]);
+
+  if (isLoading) {
+    return (
+      <div className="relative w-full h-[500px] bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading chart data for {ticker}...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="relative w-full h-[500px] bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 flex items-center justify-center">
+        <div className="text-center text-red-600">
+          <p className="text-lg font-semibold mb-2">Error loading chart</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative w-full">
-      <div ref={chartContainerRef} className="w-full h-[400px]" />
+    <div className="relative w-full bg-white/90 backdrop-blur-sm rounded-xl shadow-xl border border-white/20 p-4">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-gray-800">
+          {ticker} - {interval.toUpperCase()} Chart
+        </h3>
+        <p className="text-sm text-gray-600">
+          {chartData.length} data points loaded
+          {zones && zones.length > 0 && ` • ${zones.length} zones displayed`}
+        </p>
+      </div>
+      <div ref={chartContainerRef} className="w-full h-[500px] rounded-lg overflow-hidden" />
     </div>
   );
 };
