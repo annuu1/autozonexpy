@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import ZoneChart from './chart/ZoneChart'
+import ZoneChart from './charts/ZoneChart'
 import axios from 'axios'
 
 const ZoneCharts = () => {
@@ -206,7 +206,6 @@ const ZoneCharts = () => {
         zones={zones}
         title={`${ticker.toUpperCase()} - ${interval.toUpperCase()} Chart with Zones`}
         height={600}
-        onIntervalChange={setInterval}
       />
 
       {/* Zone Details Table */}

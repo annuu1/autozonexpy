@@ -8,7 +8,7 @@ import MultiDemandZoneForm from "./components/MultiDemandZoneForm.jsx";
 import MultiDemandZoneTable from "./components/MultiDemandZoneTable.jsx";
 import ZoneCharts from "./components/ZoneCharts.jsx";
 import ZoneChartsTable from "./components/ZoneChartsTable.jsx";
-import ZoneChart from "./components/chart/ZoneChart.jsx";
+import ZoneChart from "./components/charts/ZoneChart.jsx";
 
 function App() {
   const [zones, setZones] = useState([]);
@@ -128,7 +128,7 @@ function App() {
             <Route
               path="/zone-charts-table"
               element={
-                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+                <div className="h-screen flex flex-col p-4">
                   <ZoneChartsTable 
                     initialZones={multiTickerZones}
                     initialSettings={multiTickerSettings}
@@ -146,6 +146,7 @@ function App() {
                 </div>
               }
             />
+            
             <Route
               path="/zone-chart-test"
               element={
@@ -159,16 +160,18 @@ function App() {
                       height={500}
                       zones={[
                         {
-                          from: '2023-01-01',
-                          to: '2023-03-31',
-                          color: 'rgba(0, 150, 136, 0.2)',
-                          label: 'Q1 2023'
+                          proximal_line: 2800,
+                          distal_line: 2750,
+                          pattern: 'RBR',
+                          trade_score: 4.5,
+                          freshness: 3
                         },
                         {
-                          from: '2023-04-01',
-                          to: '2023-06-30',
-                          color: 'rgba(139, 195, 74, 0.2)',
-                          label: 'Q2 2023'
+                          proximal_line: 2900,
+                          distal_line: 2850,
+                          pattern: 'DBR',
+                          trade_score: 3.2,
+                          freshness: 1.5
                         }
                       ]}
                     />
