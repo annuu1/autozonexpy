@@ -6,7 +6,7 @@ const ZoneCharts = () => {
     return (
         <div>
             <h1>Zone Charts</h1>
-            <StockChart />
+            <StockChart ticker="RELIANCE" interval="1d" selectedZone={null}/>
         </div>
     )
 }
