@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import TradingChart from './chart/TradingChart'
+import ZoneChart from './chart/ZoneChart'
 
 const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones = [] }) => {
   const [higherInterval, setHigherInterval] = useState('1wk')
@@ -183,38 +183,22 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
       {/* Dual Charts */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Higher Timeframe Chart */}
-        <div className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-            <h3 className="text-lg font-semibold text-gray-800">
-              Higher Timeframe ({higherInterval.toUpperCase()})
-            </h3>
-          </div>
-          <TradingChart 
-            ticker={normalizedTicker}
-            interval={higherInterval}
-            zones={higherZones}
-            chartId={`higher-tf-${normalizedTicker}-${higherInterval}`}
-            height={400}
-          />
-        </div>
+        <ZoneChart 
+          ticker={normalizedTicker}
+          interval={higherInterval}
+          zones={higherZones}
+          title={`Higher Timeframe (${higherInterval.toUpperCase()})`}
+          height={400}
+        />
 
         {/* Lower Timeframe Chart */}
-        <div className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-            <h3 className="text-lg font-semibold text-gray-800">
-              Lower Timeframe ({lowerInterval.toUpperCase()})
-            </h3>
-          </div>
-          <TradingChart 
-            ticker={normalizedTicker}
-            interval={lowerInterval}
-            zones={lowerZones}
-            chartId={`lower-tf-${normalizedTicker}-${lowerInterval}`}
-            height={400}
-          />
-        </div>
+        <ZoneChart 
+          ticker={normalizedTicker}
+          interval={lowerInterval}
+          zones={lowerZones}
+          title={`Lower Timeframe (${lowerInterval.toUpperCase()})`}
+          height={400}
+        />
       </div>
 
       {/* Zone Details Table */}
