@@ -16,130 +16,178 @@ const StockChart = ({ ticker = "ABB", interval = '1d', zones = [], chartId = "de
   const [error, setError] = useState(null);
   const [chartData, setChartData] = useState([]);
 
+  // Debug logging
   useEffect(() => {
-    if (!isMounted || !containerRef.current || !ticker) {
+    console.log('StockChart render state:', {
+      ticker,
+      interval,
+      chartId,
+      isMounted,
+      containerSize,
+      zonesCount: zones?.length || 0,
+      hasContainer: !!containerRef.current
+    });
+  }, [ticker, interval, chartId, isMounted, containerSize, zones]);
+
+  useEffect(() => {
+    // Early return conditions
+    if (!ticker) {
+      console.log('❌ No ticker provided');
+      setError('No ticker provided');
       return;
     }
 
-    console.log('StockChart useEffect triggered:', { ticker, interval, chartId, zones: zones?.length, isMounted });
+    if (!isMounted) {
+      console.log('⏳ Container not mounted yet, waiting...');
+      return;
+    }
+
+    if (!containerRef.current) {
+      console.log('❌ Container ref not available');
+      setError('Chart container not available');
+      return;
+    }
+
+    console.log('🚀 Starting chart creation for:', { ticker, interval, chartId });
 
     // Clean up any existing chart
     if (chartRef.current) {
-      console.log('Cleaning up existing chart');
+      console.log('🧹 Cleaning up existing chart');
       chartRef.current.remove();
       chartRef.current = null;
       candlestickSeriesRef.current = null;
     }
 
     const normalizedTicker = normalizeTicker(ticker);
-    console.log('Creating chart for ticker:', normalizedTicker, 'interval:', interval);
+    console.log('📊 Normalized ticker:', normalizedTicker);
 
     // Create chart instance
     const chartConfig = {
       ...DEFAULT_CHART_CONFIG,
-      width: containerSize.width || containerRef.current.clientWidth,
+      width: containerSize.width || 800,
       height: containerSize.height || 500,
     };
 
-    const chart = createChart(containerRef.current, chartConfig);
-    chartRef.current = chart;
+    console.log('⚙️ Creating chart with config:', chartConfig);
 
-    // Add candlestick series
-    const candlestickSeries = chart.addCandlestickSeries(CANDLESTICK_SERIES_CONFIG);
-    candlestickSeriesRef.current = candlestickSeries;
+    try {
+      const chart = createChart(containerRef.current, chartConfig);
+      chartRef.current = chart;
 
-    console.log('Chart and candlestick series created successfully');
+      // Add candlestick series
+      const candlestickSeries = chart.addCandlestickSeries(CANDLESTICK_SERIES_CONFIG);
+      candlestickSeriesRef.current = candlestickSeries;
 
-    // Fetch and set candlestick data
-    const fetchAndSetData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        const { startDate, endDate } = getDateRange(2);
-        
-        console.log(`Making API call for ${normalizedTicker} with interval ${interval} from ${startDate} to ${endDate}`);
-        console.log(`Expected URL: http://localhost:8000/ohlc-data?ticker=${normalizedTicker.toLowerCase()}&start_date=${startDate}&end_date=${endDate}&interval=${interval}`);
-        
-        const ohlcData = await getOhlcData(normalizedTicker.toLowerCase(), interval, startDate, endDate);
-        console.log('Raw OHLC data received:', ohlcData?.length, 'records');
-        
-        if (ohlcData && ohlcData.length > 0) {
-          console.log('First few records:', ohlcData.slice(0, 3));
+      console.log('✅ Chart and candlestick series created successfully');
+
+      // Fetch and set candlestick data
+      const fetchAndSetData = async () => {
+        try {
+          setIsLoading(true);
+          setError(null);
+          
+          const { startDate, endDate } = getDateRange(2);
+          
+          console.log(`🔄 Making API call for ${normalizedTicker}`);
+          console.log(`📅 Date range: ${startDate} to ${endDate}`);
+          console.log(`⏱️ Interval: ${interval}`);
+          console.log(`🌐 Expected URL: http://localhost:8000/ohlc-data?ticker=${normalizedTicker.toLowerCase()}&start_date=${startDate}&end_date=${endDate}&interval=${interval}`);
+          
+          const ohlcData = await getOhlcData(normalizedTicker.toLowerCase(), interval, startDate, endDate);
+          console.log('📈 Raw OHLC data received:', ohlcData?.length, 'records');
+          
+          if (ohlcData && ohlcData.length > 0) {
+            console.log('📋 First few records:', ohlcData.slice(0, 3));
+          }
+          
+          const processedData = processOhlcData(ohlcData);
+          console.log(`✨ Processed ${processedData.length} valid data points for ${chartId}`);
+          console.log('📊 Sample processed data:', processedData.slice(0, 3));
+          
+          // Set the candlestick data
+          candlestickSeries.setData(processedData);
+          setChartData(processedData);
+
+          // Add zone lines if zones are provided
+          if (zones && zones.length > 0) {
+            console.log(`🎯 Adding ${zones.length} zone lines for ${chartId}`);
+            addZoneLines(candlestickSeries, zones);
+          }
+
+          // Fit content to show all data
+          chart.timeScale().fitContent();
+          
+          console.log(`🎉 Chart ${chartId} setup complete!`);
+          console.log(`📊 Data points: ${processedData.length}`);
+          console.log(`🎯 Zones: ${zones?.length || 0}`);
+          
+        } catch (error) {
+          console.error(`❌ Error in fetchAndSetData for ${chartId}:`, error);
+          setError(error.message || 'Failed to load chart data');
+        } finally {
+          setIsLoading(false);
         }
-        
-        const processedData = processOhlcData(ohlcData);
-        console.log(`Processed ${processedData.length} valid data points for ${chartId}`);
-        console.log('Sample processed data:', processedData.slice(0, 3));
-        
-        // Set the candlestick data
-        candlestickSeries.setData(processedData);
-        setChartData(processedData);
+      };
 
-        // Add zone lines if zones are provided
-        if (zones && zones.length > 0) {
-          console.log(`Adding ${zones.length} zone lines for ${chartId}`);
-          addZoneLines(candlestickSeries, zones);
+      // Start fetching data
+      fetchAndSetData();
+
+      // Resize handler
+      const handleResize = () => {
+        if (chart && containerRef.current) {
+          const newWidth = containerRef.current.clientWidth;
+          chart.applyOptions({ width: newWidth });
+          console.log('📏 Chart resized to width:', newWidth);
         }
+      };
+      
+      window.addEventListener('resize', handleResize);
 
-        // Fit content to show all data
-        chart.timeScale().fitContent();
-        
-        console.log(`Chart ${chartId} setup complete with ${processedData.length} data points and ${zones?.length || 0} zones`);
-        
-      } catch (error) {
-        console.error(`Error in fetchAndSetData for ${chartId}:`, error);
-        setError(error.message || 'Failed to load chart data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      // Cleanup on unmount
+      return () => {
+        console.log(`🧹 Cleaning up chart ${chartId}`);
+        window.removeEventListener('resize', handleResize);
+        if (chart) {
+          chart.remove();
+        }
+      };
 
-    // Start fetching data
-    fetchAndSetData();
+    } catch (error) {
+      console.error('❌ Error creating chart:', error);
+      setError('Failed to create chart: ' + error.message);
+    }
 
-    // Resize handler
-    const handleResize = () => {
-      if (chart && containerRef.current) {
-        chart.applyOptions({
-          width: containerRef.current.clientWidth,
-        });
-      }
-    };
-    
-    window.addEventListener('resize', handleResize);
-
-    // Cleanup on unmount
-    return () => {
-      console.log(`Cleaning up chart ${chartId}`);
-      window.removeEventListener('resize', handleResize);
-      if (chart) {
-        chart.remove();
-      }
-    };
   }, [ticker, interval, zones, chartId, isMounted, containerSize]);
 
-  // Loading states
+  // Loading states with better debugging
   if (!isMounted) {
+    console.log('🔄 Rendering ChartInitializing component');
     return <ChartInitializing chartId={chartId} />;
   }
 
   if (isLoading) {
+    console.log('⏳ Rendering ChartLoading component');
     return <ChartLoading ticker={ticker} interval={interval} chartId={chartId} />;
   }
 
   if (error) {
+    console.log('❌ Rendering ChartError component:', error);
     return (
       <ChartError 
         error={error} 
         ticker={ticker} 
         interval={interval} 
         chartId={chartId} 
-        onRetry={() => window.location.reload()} 
+        onRetry={() => {
+          console.log('🔄 Retrying chart load...');
+          setError(null);
+          window.location.reload();
+        }} 
       />
     );
   }
 
+  console.log('✅ Rendering chart component');
   return (
     <div className="relative w-full bg-white/90 backdrop-blur-sm rounded-xl shadow-xl border border-white/20 p-4">
       <div className="mb-4">
@@ -155,9 +203,16 @@ const StockChart = ({ ticker = "ABB", interval = '1d', zones = [], chartId = "de
             Data range: {chartData[0]?.time} to {chartData[chartData.length - 1]?.time}
           </p>
         )}
+        <p className="text-xs text-gray-400">
+          Chart ID: {chartId} | Container: {containerSize.width}x{containerSize.height}
+        </p>
       </div>
       
-      <div ref={containerRef} className="w-full h-[500px] rounded-lg overflow-hidden" />
+      <div 
+        ref={containerRef} 
+        className="w-full h-[500px] rounded-lg overflow-hidden bg-gray-50"
+        style={{ minHeight: '500px', minWidth: '300px' }}
+      />
       
       <ChartLegend zones={zones} chartData={chartData} />
     </div>
