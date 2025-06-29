@@ -9,12 +9,28 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartData, setChartData] = useState([]);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Check if component is mounted and container is ready
+  useEffect(() => {
+    const checkContainer = () => {
+      if (chartContainerRef.current && chartContainerRef.current.offsetWidth > 0) {
+        console.log('Chart container is ready:', chartContainerRef.current.offsetWidth, 'x', chartContainerRef.current.offsetHeight);
+        setIsMounted(true);
+      } else {
+        console.log('Chart container not ready, retrying...');
+        setTimeout(checkContainer, 100);
+      }
+    };
+
+    checkContainer();
+  }, []);
 
   useEffect(() => {
-    console.log('StockChart useEffect triggered:', { ticker, interval, chartId, zones: zones?.length });
+    console.log('StockChart useEffect triggered:', { ticker, interval, chartId, zones: zones?.length, isMounted });
 
-    if (!chartContainerRef.current) {
-      console.log('Chart container not ready yet');
+    if (!isMounted || !chartContainerRef.current) {
+      console.log('Chart container not ready yet, isMounted:', isMounted);
       return;
     }
 
@@ -27,6 +43,7 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
 
     // Clean up any existing chart
     if (chartRef.current) {
+      console.log('Cleaning up existing chart');
       chartRef.current.remove();
       chartRef.current = null;
       candlestickSeriesRef.current = null;
@@ -38,7 +55,7 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
       normalizedTicker = normalizedTicker.replace('.NS', '');
     }
 
-    console.log('Normalized ticker for API:', normalizedTicker);
+    console.log('Creating chart for ticker:', normalizedTicker, 'interval:', interval);
 
     // Create chart instance
     const chart = createChart(chartContainerRef.current, {
@@ -86,6 +103,8 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
     });
     candlestickSeriesRef.current = candlestickSeries;
 
+    console.log('Chart and candlestick series created successfully');
+
     // Fetch and set candlestick data
     const fetchAndSetData = async () => {
       try {
@@ -101,7 +120,10 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
         
         const ohlcData = await getOhlcData(normalizedTicker.toLowerCase(), interval, startDate, endDate);
         console.log('Raw OHLC data received:', ohlcData?.length, 'records');
-        console.log('First few records:', ohlcData?.slice(0, 3));
+        
+        if (ohlcData && ohlcData.length > 0) {
+          console.log('First few records:', ohlcData.slice(0, 3));
+        }
         
         if (!Array.isArray(ohlcData) || ohlcData.length === 0) {
           throw new Error(`No OHLC data returned for ${normalizedTicker}`);
@@ -232,7 +254,19 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
         chart.remove();
       }
     };
-  }, [ticker, interval, zones, chartId]);
+  }, [ticker, interval, zones, chartId, isMounted]);
+
+  if (!isMounted) {
+    return (
+      <div className="relative w-full h-[500px] bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-pulse rounded-full h-12 w-12 bg-indigo-200 mx-auto mb-4"></div>
+          <p className="text-gray-600">Initializing chart container...</p>
+          <p className="text-sm text-gray-500 mt-1">Chart ID: {chartId}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
