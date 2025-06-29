@@ -140,46 +140,6 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
         </div>
       </div>
 
-      {/* Chart Controls */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Chart Controls</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Higher Timeframe Interval:
-            </label>
-            <select
-              value={higherInterval}
-              onChange={(e) => setHigherInterval(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-3 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {higherIntervals.map(interval => (
-                <option key={interval.value} value={interval.value}>
-                  {interval.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Lower Timeframe Interval:
-            </label>
-            <select
-              value={lowerInterval}
-              onChange={(e) => setLowerInterval(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-3 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            >
-              {lowerIntervals.map(interval => (
-                <option key={interval.value} value={interval.value}>
-                  {interval.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
       {/* Dual Charts */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Higher Timeframe Chart */}
@@ -189,6 +149,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
           zones={higherZones}
           title={`Higher Timeframe (${higherInterval.toUpperCase()})`}
           height={400}
+          onIntervalChange={setHigherInterval}
         />
 
         {/* Lower Timeframe Chart */}
@@ -198,6 +159,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
           zones={lowerZones}
           title={`Lower Timeframe (${lowerInterval.toUpperCase()})`}
           height={400}
+          onIntervalChange={setLowerInterval}
         />
       </div>
 

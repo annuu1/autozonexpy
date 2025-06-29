@@ -206,6 +206,7 @@ const ZoneCharts = () => {
         zones={zones}
         title={`${ticker.toUpperCase()} - ${interval.toUpperCase()} Chart with Zones`}
         height={600}
+        onIntervalChange={setInterval}
       />
 
       {/* Zone Details Table */}
