@@ -15,6 +15,7 @@ const ChartContainer = ({
   const chartContainerRef = useRef(null)
   const chartRef = useRef(null)
   const candlestickSeriesRef = useRef(null)
+  const priceLineRefs = useRef([]) // Track price lines for cleanup
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState(null)
@@ -89,9 +90,24 @@ const ChartContainer = ({
     }
   }
 
+  // Clear all existing price lines
+  const clearPriceLines = () => {
+    if (candlestickSeriesRef.current && priceLineRefs.current.length > 0) {
+      priceLineRefs.current.forEach(priceLine => {
+        try {
+          candlestickSeriesRef.current.removePriceLine(priceLine)
+        } catch (error) {
+          console.warn('Error removing price line:', error)
+        }
+      })
+      priceLineRefs.current = []
+    }
+  }
+
   // Clean up chart on unmount
   useEffect(() => {
     return () => {
+      clearPriceLines()
       if (chartRef.current) {
         chartRef.current.remove()
         chartRef.current = null
@@ -105,6 +121,7 @@ const ChartContainer = ({
 
     // Remove existing chart
     if (chartRef.current) {
+      clearPriceLines()
       chartRef.current.remove()
     }
 
@@ -172,6 +189,7 @@ const ChartContainer = ({
     } else {
       setIsLoading(true)
       setChartData([])
+      clearPriceLines() // Clear existing price lines when loading new data
     }
     
     setError(null)
@@ -224,6 +242,7 @@ const ChartContainer = ({
         setCurrentStartDate(startDate)
       }
 
+      // Add zones after data is loaded
       if (zones && zones.length > 0) {
         addZoneLines(zones)
       }
@@ -248,18 +267,21 @@ const ChartContainer = ({
     }
   }, [ticker, currentInterval])
 
-  // Update zones when zones prop changes
+  // Update zones when zones prop changes (but only if we have chart data)
   useEffect(() => {
     if (zones && zones.length > 0 && candlestickSeriesRef.current && chartData.length > 0) {
+      // Clear existing lines first
+      clearPriceLines()
+      // Add new zone lines
       addZoneLines(zones)
     }
-  }, [zones, chartData])
+  }, [zones])
 
   const addZoneLines = (zonesToAdd) => {
-    if (!candlestickSeriesRef.current || !zonesToAdd) return
+    if (!candlestickSeriesRef.current || !zonesToAdd || zonesToAdd.length === 0) return
 
-    // Clear existing price lines
-    candlestickSeriesRef.current.applyOptions({})
+    // Clear existing price lines before adding new ones
+    clearPriceLines()
 
     zonesToAdd.forEach((zone, index) => {
       try {
@@ -274,7 +296,7 @@ const ChartContainer = ({
         const colorSet = colors[index % colors.length]
         
         if (zone.proximal_line && typeof zone.proximal_line === 'number') {
-          candlestickSeriesRef.current.createPriceLine({
+          const proximalLine = candlestickSeriesRef.current.createPriceLine({
             price: zone.proximal_line,
             color: colorSet.proximal,
             lineWidth: 2,
@@ -282,10 +304,11 @@ const ChartContainer = ({
             axisLabelVisible: true,
             title: `${zone.pattern || 'Zone'} Proximal (${zone.proximal_line.toFixed(2)})`,
           })
+          priceLineRefs.current.push(proximalLine)
         }
 
         if (zone.distal_line && typeof zone.distal_line === 'number') {
-          candlestickSeriesRef.current.createPriceLine({
+          const distalLine = candlestickSeriesRef.current.createPriceLine({
             price: zone.distal_line,
             color: colorSet.distal,
             lineWidth: 2,
@@ -293,6 +316,7 @@ const ChartContainer = ({
             axisLabelVisible: true,
             title: `${zone.pattern || 'Zone'} Distal (${zone.distal_line.toFixed(2)})`,
           })
+          priceLineRefs.current.push(distalLine)
         }
 
         if (zone.coinciding_lower_zones && Array.isArray(zone.coinciding_lower_zones) && zone.coinciding_lower_zones.length > 0) {
@@ -304,7 +328,7 @@ const ChartContainer = ({
               }
 
               if (lowerZone.proximal_line && typeof lowerZone.proximal_line === 'number') {
-                candlestickSeriesRef.current.createPriceLine({
+                const ltfProximalLine = candlestickSeriesRef.current.createPriceLine({
                   price: lowerZone.proximal_line,
                   color: lowerColorSet.proximal,
                   lineWidth: 1,
@@ -312,10 +336,11 @@ const ChartContainer = ({
                   axisLabelVisible: false,
                   title: `LTF ${lowerZone.pattern || 'Zone'} P (${lowerZone.proximal_line.toFixed(2)})`,
                 })
+                priceLineRefs.current.push(ltfProximalLine)
               }
 
               if (lowerZone.distal_line && typeof lowerZone.distal_line === 'number') {
-                candlestickSeriesRef.current.createPriceLine({
+                const ltfDistalLine = candlestickSeriesRef.current.createPriceLine({
                   price: lowerZone.distal_line,
                   color: lowerColorSet.distal,
                   lineWidth: 1,
@@ -323,6 +348,7 @@ const ChartContainer = ({
                   axisLabelVisible: false,
                   title: `LTF ${lowerZone.pattern || 'Zone'} D (${lowerZone.distal_line.toFixed(2)})`,
                 })
+                priceLineRefs.current.push(ltfDistalLine)
               }
             } catch (lowerZoneError) {
               console.warn('Error adding lower zone line:', lowerZoneError)
@@ -333,6 +359,8 @@ const ChartContainer = ({
         console.warn('Error adding zone lines for zone:', zone, zoneError)
       }
     })
+
+    console.log(`Added ${priceLineRefs.current.length} price lines to chart`)
   }
 
   const handleIntervalChange = (newInterval) => {
@@ -383,6 +411,11 @@ const ChartContainer = ({
               {chartData.length > 0 && (
                 <span className="text-blue-600">
                   {getDataInfo()}
+                </span>
+              )}
+              {priceLineRefs.current.length > 0 && (
+                <span className="text-green-600">
+                  {priceLineRefs.current.length} lines
                 </span>
               )}
             </div>

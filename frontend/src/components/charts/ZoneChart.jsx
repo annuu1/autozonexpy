@@ -13,6 +13,7 @@ const ZoneChart = ({
   const chartContainerRef = useRef(null)
   const chartRef = useRef(null)
   const candlestickSeriesRef = useRef(null)
+  const priceLineRefs = useRef([]) // Track price lines for cleanup
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState(null)
@@ -76,9 +77,24 @@ const ZoneChart = ({
     }
   }
 
+  // Clear all existing price lines
+  const clearPriceLines = () => {
+    if (candlestickSeriesRef.current && priceLineRefs.current.length > 0) {
+      priceLineRefs.current.forEach(priceLine => {
+        try {
+          candlestickSeriesRef.current.removePriceLine(priceLine)
+        } catch (error) {
+          console.warn('Error removing price line:', error)
+        }
+      })
+      priceLineRefs.current = []
+    }
+  }
+
   // Clean up chart on unmount
   useEffect(() => {
     return () => {
+      clearPriceLines()
       if (chartRef.current) {
         chartRef.current.remove()
         chartRef.current = null
@@ -92,6 +108,7 @@ const ZoneChart = ({
 
     // Remove existing chart
     if (chartRef.current) {
+      clearPriceLines()
       chartRef.current.remove()
     }
 
@@ -159,6 +176,7 @@ const ZoneChart = ({
     } else {
       setIsLoading(true)
       setChartData([])
+      clearPriceLines() // Clear existing price lines when loading new data
     }
     
     setError(null)
@@ -209,81 +227,9 @@ const ZoneChart = ({
         setCurrentStartDate(startDate)
       }
 
-      // Add zone lines
+      // Add zone lines after data is loaded
       if (zones && zones.length > 0) {
-        zones.forEach((zone, index) => {
-          try {
-            const colors = [
-              { proximal: '#00796B', distal: '#004D40' },
-              { proximal: '#1976D2', distal: '#0D47A1' },
-              { proximal: '#7B1FA2', distal: '#4A148C' },
-              { proximal: '#F57C00', distal: '#E65100' },
-              { proximal: '#C62828', distal: '#B71C1C' },
-            ]
-            
-            const colorSet = colors[index % colors.length]
-            
-            if (zone.proximal_line && typeof zone.proximal_line === 'number') {
-              candlestickSeriesRef.current.createPriceLine({
-                price: zone.proximal_line,
-                color: colorSet.proximal,
-                lineWidth: 2,
-                lineStyle: 0,
-                axisLabelVisible: true,
-                title: `${zone.pattern || 'Zone'} P (${zone.proximal_line.toFixed(2)})`,
-              })
-            }
-
-            if (zone.distal_line && typeof zone.distal_line === 'number') {
-              candlestickSeriesRef.current.createPriceLine({
-                price: zone.distal_line,
-                color: colorSet.distal,
-                lineWidth: 2,
-                lineStyle: 1,
-                axisLabelVisible: true,
-                title: `${zone.pattern || 'Zone'} D (${zone.distal_line.toFixed(2)})`,
-              })
-            }
-
-            // Add lower timeframe zones if present
-            if (zone.coinciding_lower_zones && Array.isArray(zone.coinciding_lower_zones)) {
-              zone.coinciding_lower_zones.forEach((lowerZone, lowerIndex) => {
-                try {
-                  const lowerColorSet = {
-                    proximal: `rgba(${76 + lowerIndex * 30}, ${175 + lowerIndex * 20}, ${80 + lowerIndex * 25}, 0.7)`,
-                    distal: `rgba(${56 + lowerIndex * 25}, ${142 + lowerIndex * 15}, ${60 + lowerIndex * 20}, 0.7)`
-                  }
-
-                  if (lowerZone.proximal_line && typeof lowerZone.proximal_line === 'number') {
-                    candlestickSeriesRef.current.createPriceLine({
-                      price: lowerZone.proximal_line,
-                      color: lowerColorSet.proximal,
-                      lineWidth: 1,
-                      lineStyle: 2,
-                      axisLabelVisible: false,
-                      title: `LTF ${lowerZone.pattern || 'Zone'} P (${lowerZone.proximal_line.toFixed(2)})`,
-                    })
-                  }
-
-                  if (lowerZone.distal_line && typeof lowerZone.distal_line === 'number') {
-                    candlestickSeriesRef.current.createPriceLine({
-                      price: lowerZone.distal_line,
-                      color: lowerColorSet.distal,
-                      lineWidth: 1,
-                      lineStyle: 3,
-                      axisLabelVisible: false,
-                      title: `LTF ${lowerZone.pattern || 'Zone'} D (${lowerZone.distal_line.toFixed(2)})`,
-                    })
-                  }
-                } catch (lowerZoneError) {
-                  console.warn('Error adding lower zone line:', lowerZoneError)
-                }
-              })
-            }
-          } catch (zoneError) {
-            console.warn('Error adding zone lines for zone:', zone, zoneError)
-          }
-        })
+        addZoneLines(zones)
       }
 
       if (!isLoadMore) {
@@ -304,7 +250,104 @@ const ZoneChart = ({
       const { startDate, endDate } = getInitialTimeRange(interval)
       loadChartData(startDate, endDate, false)
     }
-  }, [ticker, interval, zones])
+  }, [ticker, interval])
+
+  // Update zones when zones prop changes (but only if we have chart data)
+  useEffect(() => {
+    if (zones && zones.length > 0 && candlestickSeriesRef.current && chartData.length > 0) {
+      // Clear existing lines first
+      clearPriceLines()
+      // Add new zone lines
+      addZoneLines(zones)
+    }
+  }, [zones])
+
+  const addZoneLines = (zonesToAdd) => {
+    if (!candlestickSeriesRef.current || !zonesToAdd || zonesToAdd.length === 0) return
+
+    // Clear existing price lines before adding new ones
+    clearPriceLines()
+
+    zonesToAdd.forEach((zone, index) => {
+      try {
+        const colors = [
+          { proximal: '#00796B', distal: '#004D40' },
+          { proximal: '#1976D2', distal: '#0D47A1' },
+          { proximal: '#7B1FA2', distal: '#4A148C' },
+          { proximal: '#F57C00', distal: '#E65100' },
+          { proximal: '#C62828', distal: '#B71C1C' },
+        ]
+        
+        const colorSet = colors[index % colors.length]
+        
+        if (zone.proximal_line && typeof zone.proximal_line === 'number') {
+          const proximalLine = candlestickSeriesRef.current.createPriceLine({
+            price: zone.proximal_line,
+            color: colorSet.proximal,
+            lineWidth: 2,
+            lineStyle: 0,
+            axisLabelVisible: true,
+            title: `${zone.pattern || 'Zone'} P (${zone.proximal_line.toFixed(2)})`,
+          })
+          priceLineRefs.current.push(proximalLine)
+        }
+
+        if (zone.distal_line && typeof zone.distal_line === 'number') {
+          const distalLine = candlestickSeriesRef.current.createPriceLine({
+            price: zone.distal_line,
+            color: colorSet.distal,
+            lineWidth: 2,
+            lineStyle: 1,
+            axisLabelVisible: true,
+            title: `${zone.pattern || 'Zone'} D (${zone.distal_line.toFixed(2)})`,
+          })
+          priceLineRefs.current.push(distalLine)
+        }
+
+        // Add lower timeframe zones if present
+        if (zone.coinciding_lower_zones && Array.isArray(zone.coinciding_lower_zones)) {
+          zone.coinciding_lower_zones.forEach((lowerZone, lowerIndex) => {
+            try {
+              const lowerColorSet = {
+                proximal: `rgba(${76 + lowerIndex * 30}, ${175 + lowerIndex * 20}, ${80 + lowerIndex * 25}, 0.7)`,
+                distal: `rgba(${56 + lowerIndex * 25}, ${142 + lowerIndex * 15}, ${60 + lowerIndex * 20}, 0.7)`
+              }
+
+              if (lowerZone.proximal_line && typeof lowerZone.proximal_line === 'number') {
+                const ltfProximalLine = candlestickSeriesRef.current.createPriceLine({
+                  price: lowerZone.proximal_line,
+                  color: lowerColorSet.proximal,
+                  lineWidth: 1,
+                  lineStyle: 2,
+                  axisLabelVisible: false,
+                  title: `LTF ${lowerZone.pattern || 'Zone'} P (${lowerZone.proximal_line.toFixed(2)})`,
+                })
+                priceLineRefs.current.push(ltfProximalLine)
+              }
+
+              if (lowerZone.distal_line && typeof lowerZone.distal_line === 'number') {
+                const ltfDistalLine = candlestickSeriesRef.current.createPriceLine({
+                  price: lowerZone.distal_line,
+                  color: lowerColorSet.distal,
+                  lineWidth: 1,
+                  lineStyle: 3,
+                  axisLabelVisible: false,
+                  title: `LTF ${lowerZone.pattern || 'Zone'} D (${lowerZone.distal_line.toFixed(2)})`,
+                })
+                priceLineRefs.current.push(ltfDistalLine)
+              }
+            } catch (lowerZoneError) {
+              console.warn('Error adding lower zone line:', lowerZoneError)
+            }
+          })
+        }
+      } catch (zoneError) {
+        console.warn('Error adding zone lines for zone:', zone, zoneError)
+      }
+    })
+
+    console.log(`Added ${priceLineRefs.current.length} price lines to chart`)
+  }
 
   const handleLoadMore = () => {
     if (!currentStartDate || isLoadingMore) return
@@ -347,6 +390,11 @@ const ZoneChart = ({
               {chartData.length > 0 && (
                 <span className="text-blue-600">
                   {getDataInfo()}
+                </span>
+              )}
+              {priceLineRefs.current.length > 0 && (
+                <span className="text-green-600">
+                  {priceLineRefs.current.length} lines
                 </span>
               )}
             </div>
