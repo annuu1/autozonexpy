@@ -8,6 +8,7 @@ import MultiDemandZoneForm from "./components/MultiDemandZoneForm.jsx";
 import MultiDemandZoneTable from "./components/MultiDemandZoneTable.jsx";
 import ZoneCharts from "./components/ZoneCharts.jsx";
 import ZoneChartsTable from "./components/ZoneChartsTable.jsx";
+import ZoneChart from "./components/chart/ZoneChart.jsx";
 
 function App() {
   const [zones, setZones] = useState([]);
@@ -74,6 +75,12 @@ function App() {
             >
               Zone Charts
             </Link>
+            <Link
+              to="/zone-chart-test"
+              className="px-6 py-3 bg-white/80 backdrop-blur-sm text-amber-700 font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-white/90 transition-all duration-200 border border-amber-200"
+            >
+              Test Zone Chart
+            </Link>
           </div>
 
           {/* Routes */}
@@ -136,6 +143,36 @@ function App() {
               element={
                 <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
                   <ZoneCharts />
+                </div>
+              }
+            />
+            <Route
+              path="/zone-chart-test"
+              element={
+                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+                  <h2 className="text-2xl font-bold mb-6 text-gray-800">Zone Chart Test</h2>
+                  <div className="h-[600px] w-full">
+                    <ZoneChart 
+                      ticker="RELIANCE.NS"
+                      interval="1d"
+                      title="Reliance Industries"
+                      height={500}
+                      zones={[
+                        {
+                          from: '2023-01-01',
+                          to: '2023-03-31',
+                          color: 'rgba(0, 150, 136, 0.2)',
+                          label: 'Q1 2023'
+                        },
+                        {
+                          from: '2023-04-01',
+                          to: '2023-06-30',
+                          color: 'rgba(139, 195, 74, 0.2)',
+                          label: 'Q2 2023'
+                        }
+                      ]}
+                    />
+                  </div>
                 </div>
               }
             />
