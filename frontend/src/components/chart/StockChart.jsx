@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart } from 'lightweight-charts';
 import { getOhlcData } from '../../services/api';
-import { useChartContainer } from '../../hooks/useChartContainer';
 import { processOhlcData, normalizeTicker, getDateRange } from '../../utils/chartDataProcessor';
 import { addZoneLines } from './ChartZoneLines';
 import { DEFAULT_CHART_CONFIG, CANDLESTICK_SERIES_CONFIG } from './ChartConfig';
@@ -9,31 +8,86 @@ import { ChartInitializing, ChartLoading, ChartError } from './ChartLoadingState
 import ChartLegend from './ChartLegend';
 
 const StockChart = ({ ticker = "ABB", interval = '1d', zones = [], chartId = "default" }) => {
-  const { containerRef, isMounted, containerSize } = useChartContainer();
+  const containerRef = useRef(null);
   const chartRef = useRef(null);
   const candlestickSeriesRef = useRef(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartData, setChartData] = useState([]);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Debug logging
+  console.log('StockChart render state:', {
+    ticker,
+    interval,
+    chartId,
+    isMounted,
+    zonesCount: zones?.length || 0,
+    hasContainer: !!containerRef.current,
+    containerDimensions: containerRef.current ? {
+      offsetWidth: containerRef.current.offsetWidth,
+      offsetHeight: containerRef.current.offsetHeight,
+      clientWidth: containerRef.current.clientWidth,
+      clientHeight: containerRef.current.clientHeight
+    } : null
+  });
+
+  // Check container mounting with a more reliable approach
   useEffect(() => {
-    console.log('StockChart render state:', {
-      ticker,
-      interval,
-      chartId,
-      isMounted,
-      containerSize,
-      zonesCount: zones?.length || 0,
-      hasContainer: !!containerRef.current
-    });
-  }, [ticker, interval, chartId, isMounted, containerSize, zones]);
+    let retryCount = 0;
+    const maxRetries = 30;
+    let timeoutId;
+
+    const checkContainer = () => {
+      console.log(`🔍 Checking container (attempt ${retryCount + 1}/${maxRetries})`);
+      
+      if (!containerRef.current) {
+        console.log('📦 Container ref not available yet');
+        if (retryCount < maxRetries) {
+          retryCount++;
+          timeoutId = setTimeout(checkContainer, 100);
+        } else {
+          console.error('❌ Container ref never became available after', maxRetries, 'attempts');
+          setError('Chart container failed to mount');
+        }
+        return;
+      }
+
+      // Check if container has dimensions
+      const width = containerRef.current.offsetWidth || containerRef.current.clientWidth;
+      const height = containerRef.current.offsetHeight || containerRef.current.clientHeight;
+      
+      console.log('📏 Container dimensions:', { width, height });
+
+      if (width > 0) {
+        console.log('✅ Container is ready with dimensions:', { width, height });
+        setIsMounted(true);
+      } else if (retryCount < maxRetries) {
+        retryCount++;
+        console.log(`⏳ Container has no width yet, retrying...`);
+        timeoutId = setTimeout(checkContainer, 100);
+      } else {
+        console.log('🔧 Force mounting with default dimensions');
+        setIsMounted(true); // Force mount even without proper dimensions
+      }
+    };
+
+    // Start checking after a small delay to ensure DOM is ready
+    timeoutId = setTimeout(checkContainer, 50);
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Early return conditions
     if (!ticker) {
       console.log('❌ No ticker provided');
       setError('No ticker provided');
+      setIsLoading(false);
       return;
     }
 
@@ -45,6 +99,7 @@ const StockChart = ({ ticker = "ABB", interval = '1d', zones = [], chartId = "de
     if (!containerRef.current) {
       console.log('❌ Container ref not available');
       setError('Chart container not available');
+      setIsLoading(false);
       return;
     }
 
@@ -61,11 +116,15 @@ const StockChart = ({ ticker = "ABB", interval = '1d', zones = [], chartId = "de
     const normalizedTicker = normalizeTicker(ticker);
     console.log('📊 Normalized ticker:', normalizedTicker);
 
+    // Get container dimensions
+    const containerWidth = containerRef.current.offsetWidth || containerRef.current.clientWidth || 800;
+    const containerHeight = 500; // Fixed height
+
     // Create chart instance
     const chartConfig = {
       ...DEFAULT_CHART_CONFIG,
-      width: containerSize.width || 800,
-      height: containerSize.height || 500,
+      width: containerWidth,
+      height: containerHeight,
     };
 
     console.log('⚙️ Creating chart with config:', chartConfig);
@@ -135,9 +194,11 @@ const StockChart = ({ ticker = "ABB", interval = '1d', zones = [], chartId = "de
       // Resize handler
       const handleResize = () => {
         if (chart && containerRef.current) {
-          const newWidth = containerRef.current.clientWidth;
-          chart.applyOptions({ width: newWidth });
-          console.log('📏 Chart resized to width:', newWidth);
+          const newWidth = containerRef.current.clientWidth || containerRef.current.offsetWidth;
+          if (newWidth > 0) {
+            chart.applyOptions({ width: newWidth });
+            console.log('📏 Chart resized to width:', newWidth);
+          }
         }
       };
       
@@ -155,9 +216,10 @@ const StockChart = ({ ticker = "ABB", interval = '1d', zones = [], chartId = "de
     } catch (error) {
       console.error('❌ Error creating chart:', error);
       setError('Failed to create chart: ' + error.message);
+      setIsLoading(false);
     }
 
-  }, [ticker, interval, zones, chartId, isMounted, containerSize]);
+  }, [ticker, interval, zones, chartId, isMounted]);
 
   // Loading states with better debugging
   if (!isMounted) {
@@ -181,7 +243,14 @@ const StockChart = ({ ticker = "ABB", interval = '1d', zones = [], chartId = "de
         onRetry={() => {
           console.log('🔄 Retrying chart load...');
           setError(null);
-          window.location.reload();
+          setIsLoading(true);
+          setIsMounted(false);
+          // Trigger remount
+          setTimeout(() => {
+            if (containerRef.current) {
+              setIsMounted(true);
+            }
+          }, 100);
         }} 
       />
     );
@@ -204,14 +273,18 @@ const StockChart = ({ ticker = "ABB", interval = '1d', zones = [], chartId = "de
           </p>
         )}
         <p className="text-xs text-gray-400">
-          Chart ID: {chartId} | Container: {containerSize.width}x{containerSize.height}
+          Chart ID: {chartId}
         </p>
       </div>
       
       <div 
         ref={containerRef} 
-        className="w-full h-[500px] rounded-lg overflow-hidden bg-gray-50"
-        style={{ minHeight: '500px', minWidth: '300px' }}
+        className="w-full h-[500px] rounded-lg overflow-hidden bg-gray-50 border border-gray-200"
+        style={{ 
+          minHeight: '500px', 
+          minWidth: '300px',
+          position: 'relative'
+        }}
       />
       
       <ChartLegend zones={zones} chartData={chartData} />
