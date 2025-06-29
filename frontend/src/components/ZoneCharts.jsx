@@ -10,9 +10,10 @@ const ZoneCharts = () => {
   const [error, setError] = useState(null)
 
   const intervals = [
+    { value: '1mo', label: 'Monthly' },
+    { value: '1wk', label: 'Weekly' },
     { value: '1d', label: 'Daily' },
     { value: '1h', label: 'Hourly' },
-    { value: '1wk', label: 'Weekly' },
     { value: '30m', label: '30 Minutes' },
     { value: '15m', label: '15 Minutes' },
     { value: '5m', label: '5 Minutes' },
@@ -22,6 +23,65 @@ const ZoneCharts = () => {
     'ABB', 'RELIANCE', 'TCS', 'HDFCBANK', 'ICICIBANK', 
     'HINDUNILVR', 'INFY', 'ITC', 'SBIN', 'BHARTIARTL'
   ]
+
+  // Get appropriate lower timeframe based on higher timeframe
+  const getLowerTimeframe = (higherInterval) => {
+    switch (higherInterval) {
+      case '1mo':
+        return '1wk'
+      case '1wk':
+        return '1d'
+      case '1d':
+        return '1h'
+      case '1h':
+        return '15m'
+      case '30m':
+        return '5m'
+      case '15m':
+        return '5m'
+      case '5m':
+        return '1m'
+      default:
+        return '1h'
+    }
+  }
+
+  // Get appropriate date range based on interval
+  const getDateRange = (intervalValue) => {
+    const endDate = new Date()
+    let startDate = new Date()
+    
+    switch (intervalValue) {
+      case '1mo':
+        startDate.setFullYear(endDate.getFullYear() - 10) // 10 years for monthly
+        break
+      case '1wk':
+        startDate.setFullYear(endDate.getFullYear() - 5) // 5 years for weekly
+        break
+      case '1d':
+        startDate.setFullYear(endDate.getFullYear() - 1) // 1 year for daily
+        break
+      case '1h':
+        startDate.setDate(endDate.getDate() - 30) // 30 days for hourly
+        break
+      case '30m':
+        startDate.setDate(endDate.getDate() - 20) // 20 days for 30min
+        break
+      case '15m':
+        startDate.setDate(endDate.getDate() - 15) // 15 days for 15min
+        break
+      case '5m':
+        startDate.setDate(endDate.getDate() - 10) // 10 days for 5min
+        break
+      default:
+        startDate.setFullYear(endDate.getFullYear() - 1) // Default 1 year
+    }
+    
+    return {
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0]
+    }
+  }
 
   const fetchZones = async () => {
     if (!ticker.trim()) {
@@ -37,12 +97,14 @@ const ZoneCharts = () => {
         ? ticker.toUpperCase()
         : `${ticker.toUpperCase()}.NS`
 
+      const dateRange = getDateRange(interval)
+      const lowerInterval = getLowerTimeframe(interval)
+
       const payload = {
         ticker: normalizedTicker,
-        start_date: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        end_date: new Date().toISOString().split('T')[0],
+        ...dateRange,
         higher_interval: interval,
-        lower_interval: interval === '1d' ? '1h' : '15m',
+        lower_interval: lowerInterval,
         leginMinBodyPercent: 50,
         ltf_leginMinBodyPercent: 50,
         legoutMinBodyPercent: 50,
@@ -57,6 +119,8 @@ const ZoneCharts = () => {
         maxBaseCandles: 5,
         detectLowerZones: true,
       }
+
+      console.log('Fetching zones with payload:', payload)
 
       const response = await axios.post('/demand-zones', payload)
       setZones(response.data || [])
@@ -78,6 +142,27 @@ const ZoneCharts = () => {
   const handleIntervalChange = (e) => {
     setInterval(e.target.value)
     setZones([]) // Clear zones when interval changes
+  }
+
+  const getDataRangeInfo = (intervalValue) => {
+    switch (intervalValue) {
+      case '1mo':
+        return '10 years of monthly data'
+      case '1wk':
+        return '5 years of weekly data'
+      case '1d':
+        return '1 year of daily data'
+      case '1h':
+        return '30 days of hourly data'
+      case '30m':
+        return '20 days of 30-minute data'
+      case '15m':
+        return '15 days of 15-minute data'
+      case '5m':
+        return '10 days of 5-minute data'
+      default:
+        return '1 year of data'
+    }
   }
 
   return (
@@ -115,6 +200,9 @@ const ZoneCharts = () => {
                 </option>
               ))}
             </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Initial load: {getDataRangeInfo(interval)}
+            </p>
           </div>
           
           <div className="flex items-end">
@@ -159,6 +247,26 @@ const ZoneCharts = () => {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Data Range Info */}
+        <div className="mb-6 p-4 bg-blue-50/80 backdrop-blur-sm rounded-lg border border-blue-200">
+          <h3 className="text-sm font-semibold text-blue-800 mb-2">
+            📊 Data Loading Strategy
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-700">
+            <div>
+              <span className="font-medium">Current Interval ({interval}):</span>
+              <span className="ml-2">{getDataRangeInfo(interval)}</span>
+            </div>
+            <div>
+              <span className="font-medium">Lower Timeframe:</span>
+              <span className="ml-2">{getLowerTimeframe(interval)} for nested zones</span>
+            </div>
+          </div>
+          <p className="text-xs text-blue-600 mt-2">
+            💡 Charts will have "Load More" buttons to extend historical data further back
+          </p>
         </div>
 
         {/* Zone Summary */}
@@ -224,6 +332,7 @@ const ZoneCharts = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Freshness</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LTF Zones</th>
                 </tr>
               </thead>
               <tbody className="bg-white/60 backdrop-blur-sm divide-y divide-gray-200">
@@ -260,6 +369,15 @@ const ZoneCharts = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {new Date(zone.end_timestamp || zone.timestamp).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {zone.coinciding_lower_zones?.length > 0 ? (
+                        <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                          {zone.coinciding_lower_zones.length}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                   </tr>
                 ))}

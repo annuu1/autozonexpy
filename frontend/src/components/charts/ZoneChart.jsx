@@ -14,7 +14,67 @@ const ZoneChart = ({
   const chartRef = useRef(null)
   const candlestickSeriesRef = useRef(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState(null)
+  const [chartData, setChartData] = useState([])
+  const [currentStartDate, setCurrentStartDate] = useState(null)
+  const [currentEndDate, setCurrentEndDate] = useState(null)
+
+  // Get initial time range based on interval
+  const getInitialTimeRange = (intervalValue) => {
+    const endDate = new Date()
+    let startDate = new Date()
+    
+    switch (intervalValue) {
+      case '1mo':
+        startDate.setFullYear(endDate.getFullYear() - 10) // 10 years for monthly
+        break
+      case '1wk':
+        startDate.setFullYear(endDate.getFullYear() - 5) // 5 years for weekly
+        break
+      case '1d':
+        startDate.setFullYear(endDate.getFullYear() - 1) // 1 year for daily
+        break
+      case '1h':
+        startDate.setDate(endDate.getDate() - 30) // 30 days for hourly
+        break
+      case '30m':
+        startDate.setDate(endDate.getDate() - 20) // 20 days for 30min
+        break
+      case '15m':
+        startDate.setDate(endDate.getDate() - 15) // 15 days for 15min
+        break
+      case '5m':
+        startDate.setDate(endDate.getDate() - 10) // 10 days for 5min
+        break
+      default:
+        startDate.setFullYear(endDate.getFullYear() - 1) // Default 1 year
+    }
+    
+    return { startDate, endDate }
+  }
+
+  // Get load more time range based on interval
+  const getLoadMoreTimeRange = (intervalValue) => {
+    switch (intervalValue) {
+      case '1mo':
+        return { years: 5, months: 0, days: 0 } // 5 more years
+      case '1wk':
+        return { years: 2, months: 0, days: 0 } // 2 more years
+      case '1d':
+        return { years: 1, months: 0, days: 0 } // 1 more year
+      case '1h':
+        return { years: 0, months: 1, days: 0 } // 1 more month
+      case '30m':
+        return { years: 0, months: 0, days: 20 } // 20 more days
+      case '15m':
+        return { years: 0, months: 0, days: 15 } // 15 more days
+      case '5m':
+        return { years: 0, months: 0, days: 10 } // 10 more days
+      default:
+        return { years: 1, months: 0, days: 0 }
+    }
+  }
 
   // Clean up chart on unmount
   useEffect(() => {
@@ -90,142 +150,228 @@ const ZoneChart = ({
     }
   }, [height])
 
-  // Load chart data and zones
-  useEffect(() => {
-    const loadChartData = async () => {
-      if (!ticker || !chartRef.current || !candlestickSeriesRef.current) return
+  // Load chart data
+  const loadChartData = async (startDate, endDate, isLoadMore = false) => {
+    if (!ticker || !chartRef.current || !candlestickSeriesRef.current) return
 
+    if (isLoadMore) {
+      setIsLoadingMore(true)
+    } else {
       setIsLoading(true)
-      setError(null)
-
-      try {
-        const endDate = new Date()
-        const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
-        const endDateStr = endDate.toISOString().split('T')[0]
-        const startDateStr = startDate.toISOString().split('T')[0]
-
-        const normalizedTicker = ticker.toUpperCase().endsWith('.NS') 
-          ? ticker.toUpperCase() 
-          : `${ticker.toUpperCase()}.NS`
-
-        const candles = await getOhlcData(normalizedTicker, interval, startDateStr, endDateStr)
-
-        const processedCandles = (candles || []).map(item => ({
-          time: new Date(item.Date).toISOString().split('T')[0],
-          open: parseFloat(item.Open),
-          high: parseFloat(item.High),
-          low: parseFloat(item.Low),
-          close: parseFloat(item.Close),
-        })).filter(item => !isNaN(item.open))
-
-        if (processedCandles.length === 0) {
-          setError('No chart data available for the selected period')
-          return
-        }
-
-        candlestickSeriesRef.current.setData(processedCandles)
-
-        // Add zone lines
-        if (zones && zones.length > 0) {
-          zones.forEach((zone, index) => {
-            try {
-              const colors = [
-                { proximal: '#00796B', distal: '#004D40' },
-                { proximal: '#1976D2', distal: '#0D47A1' },
-                { proximal: '#7B1FA2', distal: '#4A148C' },
-                { proximal: '#F57C00', distal: '#E65100' },
-                { proximal: '#C62828', distal: '#B71C1C' },
-              ]
-              
-              const colorSet = colors[index % colors.length]
-              
-              if (zone.proximal_line && typeof zone.proximal_line === 'number') {
-                candlestickSeriesRef.current.createPriceLine({
-                  price: zone.proximal_line,
-                  color: colorSet.proximal,
-                  lineWidth: 2,
-                  lineStyle: 0,
-                  axisLabelVisible: true,
-                  title: `${zone.pattern || 'Zone'} P (${zone.proximal_line.toFixed(2)})`,
-                })
-              }
-
-              if (zone.distal_line && typeof zone.distal_line === 'number') {
-                candlestickSeriesRef.current.createPriceLine({
-                  price: zone.distal_line,
-                  color: colorSet.distal,
-                  lineWidth: 2,
-                  lineStyle: 1,
-                  axisLabelVisible: true,
-                  title: `${zone.pattern || 'Zone'} D (${zone.distal_line.toFixed(2)})`,
-                })
-              }
-
-              // Add lower timeframe zones if present
-              if (zone.coinciding_lower_zones && Array.isArray(zone.coinciding_lower_zones)) {
-                zone.coinciding_lower_zones.forEach((lowerZone, lowerIndex) => {
-                  try {
-                    const lowerColorSet = {
-                      proximal: `rgba(${76 + lowerIndex * 30}, ${175 + lowerIndex * 20}, ${80 + lowerIndex * 25}, 0.7)`,
-                      distal: `rgba(${56 + lowerIndex * 25}, ${142 + lowerIndex * 15}, ${60 + lowerIndex * 20}, 0.7)`
-                    }
-
-                    if (lowerZone.proximal_line && typeof lowerZone.proximal_line === 'number') {
-                      candlestickSeriesRef.current.createPriceLine({
-                        price: lowerZone.proximal_line,
-                        color: lowerColorSet.proximal,
-                        lineWidth: 1,
-                        lineStyle: 2,
-                        axisLabelVisible: false,
-                        title: `LTF ${lowerZone.pattern || 'Zone'} P (${lowerZone.proximal_line.toFixed(2)})`,
-                      })
-                    }
-
-                    if (lowerZone.distal_line && typeof lowerZone.distal_line === 'number') {
-                      candlestickSeriesRef.current.createPriceLine({
-                        price: lowerZone.distal_line,
-                        color: lowerColorSet.distal,
-                        lineWidth: 1,
-                        lineStyle: 3,
-                        axisLabelVisible: false,
-                        title: `LTF ${lowerZone.pattern || 'Zone'} D (${lowerZone.distal_line.toFixed(2)})`,
-                      })
-                    }
-                  } catch (lowerZoneError) {
-                    console.warn('Error adding lower zone line:', lowerZoneError)
-                  }
-                })
-              }
-            } catch (zoneError) {
-              console.warn('Error adding zone lines for zone:', zone, zoneError)
-            }
-          })
-        }
-
-        chartRef.current.timeScale().fitContent()
-      } catch (error) {
-        console.error('Failed to load chart data:', error)
-        setError(error.message || 'Failed to load chart data')
-      } finally {
-        setIsLoading(false)
-      }
+      setChartData([])
     }
+    
+    setError(null)
 
-    loadChartData()
+    try {
+      const normalizedTicker = ticker.toUpperCase().endsWith('.NS') 
+        ? ticker.toUpperCase() 
+        : `${ticker.toUpperCase()}.NS`
+
+      const startDateStr = startDate.toISOString().split('T')[0]
+      const endDateStr = endDate.toISOString().split('T')[0]
+
+      const candles = await getOhlcData(normalizedTicker, interval, startDateStr, endDateStr)
+
+      const processedCandles = (candles || []).map(item => ({
+        time: new Date(item.Date).toISOString().split('T')[0],
+        open: parseFloat(item.Open),
+        high: parseFloat(item.High),
+        low: parseFloat(item.Low),
+        close: parseFloat(item.Close),
+      })).filter(item => !isNaN(item.open))
+
+      if (processedCandles.length === 0) {
+        if (!isLoadMore) {
+          setError('No chart data available for the selected period')
+        }
+        return
+      }
+
+      let newChartData
+      if (isLoadMore && chartData.length > 0) {
+        // Merge with existing data, avoiding duplicates
+        const existingTimes = new Set(chartData.map(item => item.time))
+        const newCandles = processedCandles.filter(item => !existingTimes.has(item.time))
+        newChartData = [...newCandles, ...chartData].sort((a, b) => new Date(a.time) - new Date(b.time))
+      } else {
+        newChartData = processedCandles.sort((a, b) => new Date(a.time) - new Date(b.time))
+      }
+
+      setChartData(newChartData)
+      candlestickSeriesRef.current.setData(newChartData)
+
+      // Update current date range
+      if (!isLoadMore) {
+        setCurrentStartDate(startDate)
+        setCurrentEndDate(endDate)
+      } else {
+        setCurrentStartDate(startDate)
+      }
+
+      // Add zone lines
+      if (zones && zones.length > 0) {
+        zones.forEach((zone, index) => {
+          try {
+            const colors = [
+              { proximal: '#00796B', distal: '#004D40' },
+              { proximal: '#1976D2', distal: '#0D47A1' },
+              { proximal: '#7B1FA2', distal: '#4A148C' },
+              { proximal: '#F57C00', distal: '#E65100' },
+              { proximal: '#C62828', distal: '#B71C1C' },
+            ]
+            
+            const colorSet = colors[index % colors.length]
+            
+            if (zone.proximal_line && typeof zone.proximal_line === 'number') {
+              candlestickSeriesRef.current.createPriceLine({
+                price: zone.proximal_line,
+                color: colorSet.proximal,
+                lineWidth: 2,
+                lineStyle: 0,
+                axisLabelVisible: true,
+                title: `${zone.pattern || 'Zone'} P (${zone.proximal_line.toFixed(2)})`,
+              })
+            }
+
+            if (zone.distal_line && typeof zone.distal_line === 'number') {
+              candlestickSeriesRef.current.createPriceLine({
+                price: zone.distal_line,
+                color: colorSet.distal,
+                lineWidth: 2,
+                lineStyle: 1,
+                axisLabelVisible: true,
+                title: `${zone.pattern || 'Zone'} D (${zone.distal_line.toFixed(2)})`,
+              })
+            }
+
+            // Add lower timeframe zones if present
+            if (zone.coinciding_lower_zones && Array.isArray(zone.coinciding_lower_zones)) {
+              zone.coinciding_lower_zones.forEach((lowerZone, lowerIndex) => {
+                try {
+                  const lowerColorSet = {
+                    proximal: `rgba(${76 + lowerIndex * 30}, ${175 + lowerIndex * 20}, ${80 + lowerIndex * 25}, 0.7)`,
+                    distal: `rgba(${56 + lowerIndex * 25}, ${142 + lowerIndex * 15}, ${60 + lowerIndex * 20}, 0.7)`
+                  }
+
+                  if (lowerZone.proximal_line && typeof lowerZone.proximal_line === 'number') {
+                    candlestickSeriesRef.current.createPriceLine({
+                      price: lowerZone.proximal_line,
+                      color: lowerColorSet.proximal,
+                      lineWidth: 1,
+                      lineStyle: 2,
+                      axisLabelVisible: false,
+                      title: `LTF ${lowerZone.pattern || 'Zone'} P (${lowerZone.proximal_line.toFixed(2)})`,
+                    })
+                  }
+
+                  if (lowerZone.distal_line && typeof lowerZone.distal_line === 'number') {
+                    candlestickSeriesRef.current.createPriceLine({
+                      price: lowerZone.distal_line,
+                      color: lowerColorSet.distal,
+                      lineWidth: 1,
+                      lineStyle: 3,
+                      axisLabelVisible: false,
+                      title: `LTF ${lowerZone.pattern || 'Zone'} D (${lowerZone.distal_line.toFixed(2)})`,
+                    })
+                  }
+                } catch (lowerZoneError) {
+                  console.warn('Error adding lower zone line:', lowerZoneError)
+                }
+              })
+            }
+          } catch (zoneError) {
+            console.warn('Error adding zone lines for zone:', zone, zoneError)
+          }
+        })
+      }
+
+      if (!isLoadMore) {
+        chartRef.current.timeScale().fitContent()
+      }
+    } catch (error) {
+      console.error('Failed to load chart data:', error)
+      setError(error.message || 'Failed to load chart data')
+    } finally {
+      setIsLoading(false)
+      setIsLoadingMore(false)
+    }
+  }
+
+  // Initial load when ticker or interval changes
+  useEffect(() => {
+    if (ticker && interval) {
+      const { startDate, endDate } = getInitialTimeRange(interval)
+      loadChartData(startDate, endDate, false)
+    }
   }, [ticker, interval, zones])
+
+  const handleLoadMore = () => {
+    if (!currentStartDate || isLoadingMore) return
+
+    const loadMoreRange = getLoadMoreTimeRange(interval)
+    const newStartDate = new Date(currentStartDate)
+    
+    newStartDate.setFullYear(newStartDate.getFullYear() - loadMoreRange.years)
+    newStartDate.setMonth(newStartDate.getMonth() - loadMoreRange.months)
+    newStartDate.setDate(newStartDate.getDate() - loadMoreRange.days)
+
+    loadChartData(newStartDate, currentStartDate, true)
+  }
+
+  const getDataInfo = () => {
+    if (!currentStartDate || !currentEndDate) return ''
+    
+    const start = currentStartDate.toLocaleDateString()
+    const end = currentEndDate.toLocaleDateString()
+    const candleCount = chartData.length
+    
+    return `${candleCount} candles (${start} - ${end})`
+  }
 
   return (
     <div className="relative w-full bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-white/20">
       {/* Chart Header */}
       <div className="p-4 border-b border-gray-200 bg-gray-50/80 backdrop-blur-sm">
-        <h3 className="text-lg font-semibold text-gray-800">
-          {title || `${ticker} Chart`}
-        </h3>
-        {zones.length > 0 && (
-          <p className="text-sm text-gray-600">
-            {zones.length} zone{zones.length !== 1 ? 's' : ''} displayed
-          </p>
-        )}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800">
+              {title || `${ticker} Chart`}
+            </h3>
+            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-1">
+              {zones.length > 0 && (
+                <span>
+                  {zones.length} zone{zones.length !== 1 ? 's' : ''} displayed
+                </span>
+              )}
+              {chartData.length > 0 && (
+                <span className="text-blue-600">
+                  {getDataInfo()}
+                </span>
+              )}
+            </div>
+          </div>
+          
+          {chartData.length > 0 && (
+            <button
+              onClick={handleLoadMore}
+              disabled={isLoadingMore}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            >
+              {isLoadingMore ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
+                  </svg>
+                  Loading...
+                </span>
+              ) : (
+                'Load More Data'
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Loading Overlay */}
@@ -241,6 +387,19 @@ const ZoneChart = ({
         </div>
       )}
 
+      {/* Load More Indicator */}
+      {isLoadingMore && (
+        <div className="absolute top-20 left-4 bg-blue-100/90 backdrop-blur-sm text-blue-700 px-3 py-2 rounded-lg shadow-md z-10">
+          <div className="flex items-center gap-2">
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
+            </svg>
+            <span className="text-sm font-medium">Loading more data...</span>
+          </div>
+        </div>
+      )}
+
       {/* Error Overlay */}
       {error && !isLoading && (
         <div className="absolute inset-0 bg-red-50/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-xl">
@@ -248,7 +407,12 @@ const ZoneChart = ({
             <p className="text-red-700 font-medium mb-2">Error loading chart:</p>
             <p className="text-red-600 text-sm">{error}</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                if (ticker && interval) {
+                  const { startDate, endDate } = getInitialTimeRange(interval)
+                  loadChartData(startDate, endDate, false)
+                }
+              }}
               className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
             >
               Retry

@@ -16,8 +16,12 @@ const ChartContainer = ({
   const chartRef = useRef(null)
   const candlestickSeriesRef = useRef(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState(null)
   const [currentInterval, setCurrentInterval] = useState(interval)
+  const [chartData, setChartData] = useState([])
+  const [currentStartDate, setCurrentStartDate] = useState(null)
+  const [currentEndDate, setCurrentEndDate] = useState(null)
 
   const intervals = [
     { value: '1mo', label: 'Monthly' },
@@ -28,6 +32,62 @@ const ChartContainer = ({
     { value: '15m', label: '15 Minutes' },
     { value: '5m', label: '5 Minutes' },
   ]
+
+  // Get initial time range based on interval
+  const getInitialTimeRange = (intervalValue) => {
+    const endDate = new Date()
+    let startDate = new Date()
+    
+    switch (intervalValue) {
+      case '1mo':
+        startDate.setFullYear(endDate.getFullYear() - 10) // 10 years for monthly
+        break
+      case '1wk':
+        startDate.setFullYear(endDate.getFullYear() - 5) // 5 years for weekly
+        break
+      case '1d':
+        startDate.setFullYear(endDate.getFullYear() - 1) // 1 year for daily
+        break
+      case '1h':
+        startDate.setDate(endDate.getDate() - 30) // 30 days for hourly
+        break
+      case '30m':
+        startDate.setDate(endDate.getDate() - 20) // 20 days for 30min
+        break
+      case '15m':
+        startDate.setDate(endDate.getDate() - 15) // 15 days for 15min
+        break
+      case '5m':
+        startDate.setDate(endDate.getDate() - 10) // 10 days for 5min
+        break
+      default:
+        startDate.setFullYear(endDate.getFullYear() - 1) // Default 1 year
+    }
+    
+    return { startDate, endDate }
+  }
+
+  // Get load more time range based on interval
+  const getLoadMoreTimeRange = (intervalValue) => {
+    switch (intervalValue) {
+      case '1mo':
+        return { years: 5, months: 0, days: 0 } // 5 more years
+      case '1wk':
+        return { years: 2, months: 0, days: 0 } // 2 more years
+      case '1d':
+        return { years: 1, months: 0, days: 0 } // 1 more year
+      case '1h':
+        return { years: 0, months: 1, days: 0 } // 1 more month
+      case '30m':
+        return { years: 0, months: 0, days: 20 } // 20 more days
+      case '15m':
+        return { years: 0, months: 0, days: 15 } // 15 more days
+      case '5m':
+        return { years: 0, months: 0, days: 10 } // 10 more days
+      default:
+        return { years: 1, months: 0, days: 0 }
+    }
+  }
 
   // Clean up chart on unmount
   useEffect(() => {
@@ -103,59 +163,103 @@ const ChartContainer = ({
     }
   }, [height])
 
-  // Load chart data and zones
-  useEffect(() => {
-    const loadChartData = async () => {
-      if (!ticker || !chartRef.current || !candlestickSeriesRef.current) return
+  // Load chart data
+  const loadChartData = async (startDate, endDate, isLoadMore = false) => {
+    if (!ticker || !chartRef.current || !candlestickSeriesRef.current) return
 
+    if (isLoadMore) {
+      setIsLoadingMore(true)
+    } else {
       setIsLoading(true)
-      setError(null)
-
-      try {
-        const endDate = new Date()
-        const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
-        const endDateStr = endDate.toISOString().split('T')[0]
-        const startDateStr = startDate.toISOString().split('T')[0]
-
-        const normalizedTicker = ticker.toUpperCase().endsWith('.NS') 
-          ? ticker.toUpperCase() 
-          : `${ticker.toUpperCase()}.NS`
-
-        const candles = await getOhlcData(normalizedTicker, currentInterval, startDateStr, endDateStr)
-
-        const processedCandles = (candles || []).map(item => ({
-          time: new Date(item.Date).toISOString().split('T')[0],
-          open: parseFloat(item.Open),
-          high: parseFloat(item.High),
-          low: parseFloat(item.Low),
-          close: parseFloat(item.Close),
-        })).filter(item => !isNaN(item.open))
-
-        if (processedCandles.length === 0) {
-          setError('No chart data available for the selected period')
-          return
-        }
-
-        candlestickSeriesRef.current.setData(processedCandles)
-
-        if (zones && zones.length > 0) {
-          addZoneLines(zones)
-        }
-
-        chartRef.current.timeScale().fitContent()
-      } catch (error) {
-        console.error('Failed to load chart data:', error)
-        setError(error.message || 'Failed to load chart data')
-      } finally {
-        setIsLoading(false)
-      }
+      setChartData([])
     }
+    
+    setError(null)
 
-    loadChartData()
-  }, [ticker, currentInterval, zones])
+    try {
+      const normalizedTicker = ticker.toUpperCase().endsWith('.NS') 
+        ? ticker.toUpperCase() 
+        : `${ticker.toUpperCase()}.NS`
+
+      const startDateStr = startDate.toISOString().split('T')[0]
+      const endDateStr = endDate.toISOString().split('T')[0]
+
+      console.log(`Loading ${isLoadMore ? 'more ' : ''}data for ${normalizedTicker}: ${startDateStr} to ${endDateStr}`)
+
+      const candles = await getOhlcData(normalizedTicker, currentInterval, startDateStr, endDateStr)
+
+      const processedCandles = (candles || []).map(item => ({
+        time: new Date(item.Date).toISOString().split('T')[0],
+        open: parseFloat(item.Open),
+        high: parseFloat(item.High),
+        low: parseFloat(item.Low),
+        close: parseFloat(item.Close),
+      })).filter(item => !isNaN(item.open))
+
+      if (processedCandles.length === 0) {
+        if (!isLoadMore) {
+          setError('No chart data available for the selected period')
+        }
+        return
+      }
+
+      let newChartData
+      if (isLoadMore && chartData.length > 0) {
+        // Merge with existing data, avoiding duplicates
+        const existingTimes = new Set(chartData.map(item => item.time))
+        const newCandles = processedCandles.filter(item => !existingTimes.has(item.time))
+        newChartData = [...newCandles, ...chartData].sort((a, b) => new Date(a.time) - new Date(b.time))
+      } else {
+        newChartData = processedCandles.sort((a, b) => new Date(a.time) - new Date(b.time))
+      }
+
+      setChartData(newChartData)
+      candlestickSeriesRef.current.setData(newChartData)
+
+      // Update current date range
+      if (!isLoadMore) {
+        setCurrentStartDate(startDate)
+        setCurrentEndDate(endDate)
+      } else {
+        setCurrentStartDate(startDate)
+      }
+
+      if (zones && zones.length > 0) {
+        addZoneLines(zones)
+      }
+
+      if (!isLoadMore) {
+        chartRef.current.timeScale().fitContent()
+      }
+    } catch (error) {
+      console.error('Failed to load chart data:', error)
+      setError(error.message || 'Failed to load chart data')
+    } finally {
+      setIsLoading(false)
+      setIsLoadingMore(false)
+    }
+  }
+
+  // Initial load when ticker or interval changes
+  useEffect(() => {
+    if (ticker && currentInterval) {
+      const { startDate, endDate } = getInitialTimeRange(currentInterval)
+      loadChartData(startDate, endDate, false)
+    }
+  }, [ticker, currentInterval])
+
+  // Update zones when zones prop changes
+  useEffect(() => {
+    if (zones && zones.length > 0 && candlestickSeriesRef.current && chartData.length > 0) {
+      addZoneLines(zones)
+    }
+  }, [zones, chartData])
 
   const addZoneLines = (zonesToAdd) => {
     if (!candlestickSeriesRef.current || !zonesToAdd) return
+
+    // Clear existing price lines
+    candlestickSeriesRef.current.applyOptions({})
 
     zonesToAdd.forEach((zone, index) => {
       try {
@@ -238,6 +342,29 @@ const ChartContainer = ({
     }
   }
 
+  const handleLoadMore = () => {
+    if (!currentStartDate || isLoadingMore) return
+
+    const loadMoreRange = getLoadMoreTimeRange(currentInterval)
+    const newStartDate = new Date(currentStartDate)
+    
+    newStartDate.setFullYear(newStartDate.getFullYear() - loadMoreRange.years)
+    newStartDate.setMonth(newStartDate.getMonth() - loadMoreRange.months)
+    newStartDate.setDate(newStartDate.getDate() - loadMoreRange.days)
+
+    loadChartData(newStartDate, currentStartDate, true)
+  }
+
+  const getDataInfo = () => {
+    if (!currentStartDate || !currentEndDate) return ''
+    
+    const start = currentStartDate.toLocaleDateString()
+    const end = currentEndDate.toLocaleDateString()
+    const candleCount = chartData.length
+    
+    return `${candleCount} candles (${start} - ${end})`
+  }
+
   return (
     <Card className="h-full">
       <Card.Header className="!p-4">
@@ -246,12 +373,19 @@ const ChartContainer = ({
             <h3 className="text-lg font-semibold text-gray-800">
               {title || `${ticker} Chart`}
             </h3>
-            {zones.length > 0 && (
-              <p className="text-sm text-gray-600">
-                {zones.length} zone{zones.length !== 1 ? 's' : ''} • 
-                {zones.reduce((total, zone) => total + (zone.coinciding_lower_zones?.length || 0), 0)} LTF zones
-              </p>
-            )}
+            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-1">
+              {zones.length > 0 && (
+                <span>
+                  {zones.length} zone{zones.length !== 1 ? 's' : ''} • 
+                  {zones.reduce((total, zone) => total + (zone.coinciding_lower_zones?.length || 0), 0)} LTF zones
+                </span>
+              )}
+              {chartData.length > 0 && (
+                <span className="text-blue-600">
+                  {getDataInfo()}
+                </span>
+              )}
+            </div>
           </div>
           
           <div className="flex items-center gap-2">
@@ -268,6 +402,19 @@ const ChartContainer = ({
                 </option>
               ))}
             </select>
+            
+            {chartData.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+                loading={isLoadingMore}
+                className="!px-3"
+              >
+                Load More
+              </Button>
+            )}
           </div>
         </div>
       </Card.Header>
@@ -285,6 +432,18 @@ const ChartContainer = ({
           </div>
         )}
 
+        {isLoadingMore && (
+          <div className="absolute top-4 left-4 bg-blue-100/90 backdrop-blur-sm text-blue-700 px-3 py-2 rounded-lg shadow-md z-10">
+            <div className="flex items-center gap-2">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
+              </svg>
+              <span className="text-sm font-medium">Loading more data...</span>
+            </div>
+          </div>
+        )}
+
         {error && !isLoading && (
           <div className="absolute inset-0 bg-red-50/80 backdrop-blur-sm flex items-center justify-center z-10">
             <div className="text-center p-6">
@@ -293,7 +452,12 @@ const ChartContainer = ({
               <Button
                 variant="danger"
                 size="sm"
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  if (ticker && currentInterval) {
+                    const { startDate, endDate } = getInitialTimeRange(currentInterval)
+                    loadChartData(startDate, endDate, false)
+                  }
+                }}
                 className="mt-3"
               >
                 Retry

@@ -77,43 +77,76 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
 
       {/* Timeframe Controls */}
       <CollapsibleSection
-        title="Chart Controls"
+        title="Chart Controls & Data Range Info"
         icon={<Settings size={16} />}
         defaultCollapsed={true}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Higher Timeframe:
-            </label>
-            <select
-              value={higherInterval}
-              onChange={(e) => setHigherInterval(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-2 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-            >
-              {higherIntervals.map(interval => (
-                <option key={interval.value} value={interval.value}>
-                  {interval.label}
-                </option>
-              ))}
-            </select>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Higher Timeframe:
+              </label>
+              <select
+                value={higherInterval}
+                onChange={(e) => setHigherInterval(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg p-2 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              >
+                {higherIntervals.map(interval => (
+                  <option key={interval.value} value={interval.value}>
+                    {interval.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lower Timeframe:
+              </label>
+              <select
+                value={lowerInterval}
+                onChange={(e) => setLowerInterval(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg p-2 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+              >
+                {lowerIntervals.map(interval => (
+                  <option key={interval.value} value={interval.value}>
+                    {interval.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Lower Timeframe:
-            </label>
-            <select
-              value={lowerInterval}
-              onChange={(e) => setLowerInterval(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-2 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-            >
-              {lowerIntervals.map(interval => (
-                <option key={interval.value} value={interval.value}>
-                  {interval.label}
-                </option>
-              ))}
-            </select>
+          {/* Data Range Information */}
+          <div className="bg-blue-50/80 backdrop-blur-sm rounded-lg p-3 border border-blue-200">
+            <h4 className="text-sm font-semibold text-blue-800 mb-2">Initial Data Ranges:</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-700">
+              <div>
+                <span className="font-medium">Higher TF ({higherInterval}):</span>
+                <span className="ml-2">
+                  {higherInterval === '1mo' ? '10 years' :
+                   higherInterval === '1wk' ? '5 years' :
+                   higherInterval === '1d' ? '1 year' :
+                   higherInterval === '1h' ? '30 days' : '1 year'}
+                </span>
+              </div>
+              <div>
+                <span className="font-medium">Lower TF ({lowerInterval}):</span>
+                <span className="ml-2">
+                  {lowerInterval === '1mo' ? '10 years' :
+                   lowerInterval === '1wk' ? '5 years' :
+                   lowerInterval === '1d' ? '1 year' :
+                   lowerInterval === '1h' ? '30 days' :
+                   lowerInterval === '30m' ? '20 days' :
+                   lowerInterval === '15m' ? '15 days' :
+                   lowerInterval === '5m' ? '10 days' : '1 year'}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-blue-600 mt-2">
+              💡 Use "Load More" buttons to extend historical data further back
+            </p>
           </div>
         </div>
       </CollapsibleSection>
