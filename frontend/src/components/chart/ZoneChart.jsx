@@ -72,7 +72,7 @@ const ZoneChart = ({
 
       chartRef.current = chart;
 
-      // Use the correct method name for adding candlestick series
+      // ✅ Use the correct method for the latest lightweight-charts version
       const candlestickSeries = chart.addCandlestickSeries({
         upColor: '#26a69a',
         downColor: '#ef5350',
