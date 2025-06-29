@@ -12,9 +12,25 @@ import ZoneChartsTable from "./components/ZoneChartsTable.jsx";
 function App() {
   const [zones, setZones] = useState([]);
   const [error, setError] = useState(null);
+  
+  // Shared state for multi-ticker zones and settings
+  const [multiTickerZones, setMultiTickerZones] = useState([]);
+  const [multiTickerSettings, setMultiTickerSettings] = useState(null);
 
   const handleFormSubmit = (newZones, errorMessage) => {
     setZones(newZones || []);
+    setError(errorMessage || null);
+  };
+
+  // Handler for multi-ticker form that updates both zones and settings
+  const handleMultiTickerSubmit = (newZones, settings, errorMessage) => {
+    const allZones = newZones ? Object.entries(newZones).flatMap(([ticker, zones]) =>
+      zones.map((zone) => ({ ...zone, ticker }))
+    ) : [];
+    
+    setMultiTickerZones(allZones);
+    setMultiTickerSettings(settings);
+    setZones(allZones); // Also update the regular zones for backward compatibility
     setError(errorMessage || null);
   };
 
@@ -96,8 +112,8 @@ function App() {
               path="/all-demand-zones"
               element={
                 <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
-                  <MultiDemandZoneForm onZonesFetched={setZones} />
-                  <MultiDemandZoneTable zones={zones} />
+                  <MultiDemandZoneForm onZonesFetched={handleMultiTickerSubmit} />
+                  <MultiDemandZoneTable zones={multiTickerZones} />
                 </div>
               }
             />
@@ -106,7 +122,11 @@ function App() {
               path="/zone-charts-table"
               element={
                 <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
-                  <ZoneChartsTable />
+                  <ZoneChartsTable 
+                    initialZones={multiTickerZones}
+                    initialSettings={multiTickerSettings}
+                    onZonesUpdate={setMultiTickerZones}
+                  />
                 </div>
               }
             />

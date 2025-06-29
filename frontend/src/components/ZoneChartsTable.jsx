@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import DualTimeframeChart from './DualTimeframeChart'
 
-const ZoneChartsTable = () => {
-  const [zones, setZones] = useState([])
+const ZoneChartsTable = ({ initialZones = [], initialSettings = null, onZonesUpdate }) => {
+  const [zones, setZones] = useState(initialZones)
+  const [settings, setSettings] = useState(initialSettings)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [selectedZone, setSelectedZone] = useState(null)
@@ -16,12 +17,28 @@ const ZoneChartsTable = () => {
   const [tickerFilter, setTickerFilter] = useState("all")
   const [patternFilter, setPatternFilter] = useState("all")
 
-  const fetchMultiZones = async () => {
+  // Update zones when initialZones prop changes
+  useEffect(() => {
+    if (initialZones && initialZones.length > 0) {
+      setZones(initialZones)
+      setError(null)
+    }
+  }, [initialZones])
+
+  // Update settings when initialSettings prop changes
+  useEffect(() => {
+    if (initialSettings) {
+      setSettings(initialSettings)
+    }
+  }, [initialSettings])
+
+  const fetchMultiZones = async (customSettings = null) => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const payload = {
+      // Use provided settings or default settings
+      const payload = customSettings || settings || {
         start_date: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         end_date: new Date().toISOString().split('T')[0],
         higher_interval: '1wk',
@@ -50,6 +67,13 @@ const ZoneChartsTable = () => {
       )
       
       setZones(allZones)
+      setSettings(payload)
+      
+      // Update parent component if callback provided
+      if (onZonesUpdate) {
+        onZonesUpdate(allZones)
+      }
+      
       console.log('Fetched multi zones:', allZones)
     } catch (error) {
       console.error('Error fetching zones:', error)
@@ -168,29 +192,77 @@ const ZoneChartsTable = () => {
       {/* Header and Load Button */}
       <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-gray-800">Zone Charts Table</h2>
-          <button
-            onClick={fetchMultiZones}
-            disabled={isLoading}
-            className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
-          >
-            {isLoading ? (
-              <span className="flex items-center">
-                <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
-                </svg>
-                Loading Zones...
-              </span>
-            ) : (
-              'Load All Demand Zones'
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Zone Charts Table</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {zones.length > 0 && settings ? (
+                <>
+                  Loaded {zones.length} zones using settings from Multi Ticker form
+                  <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                    {settings.higher_interval} → {settings.lower_interval}
+                  </span>
+                </>
+              ) : (
+                "Load demand zones from all tickers and view their charts with marked proximal/distal lines."
+              )}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            {zones.length > 0 && (
+              <button
+                onClick={() => fetchMultiZones()}
+                disabled={isLoading}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed transition-colors duration-200 text-sm"
+              >
+                🔄 Refresh
+              </button>
             )}
-          </button>
+            <button
+              onClick={() => fetchMultiZones()}
+              disabled={isLoading}
+              className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
+            >
+              {isLoading ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
+                  </svg>
+                  Loading Zones...
+                </span>
+              ) : zones.length > 0 ? (
+                'Load New Zones'
+              ) : (
+                'Load All Demand Zones'
+              )}
+            </button>
+          </div>
         </div>
         
-        <p className="text-gray-600">
-          Load demand zones from all tickers and view their charts with marked proximal/distal lines.
-        </p>
+        {/* Settings Display */}
+        {settings && (
+          <div className="mt-4 p-4 bg-blue-50/80 backdrop-blur-sm rounded-lg border border-blue-200">
+            <h4 className="text-sm font-semibold text-blue-800 mb-2">Current Settings:</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-blue-700">
+              <div>
+                <span className="font-medium">Date Range:</span>
+                <div>{settings.start_date} to {settings.end_date}</div>
+              </div>
+              <div>
+                <span className="font-medium">Timeframes:</span>
+                <div>{settings.higher_interval} → {settings.lower_interval}</div>
+              </div>
+              <div>
+                <span className="font-medium">Body %:</span>
+                <div>HTF: {settings.leginMinBodyPercent}% | LTF: {settings.ltf_leginMinBodyPercent}%</div>
+              </div>
+              <div>
+                <span className="font-medium">Movement %:</span>
+                <div>HTF: {settings.minLeginMovement}% | LTF: {settings.ltf_minLeginMovement}%</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Error Display */}
@@ -198,6 +270,30 @@ const ZoneChartsTable = () => {
         <div className="bg-red-50/80 backdrop-blur-sm rounded-xl p-4 border border-red-200">
           <p className="text-red-700 font-medium">Error:</p>
           <p className="text-red-600 text-sm">{error}</p>
+        </div>
+      )}
+
+      {/* Data Source Info */}
+      {zones.length > 0 && (
+        <div className="bg-emerald-50/80 backdrop-blur-sm rounded-xl p-4 border border-emerald-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-emerald-700 font-medium">
+                📊 Data Source: {initialZones.length > 0 ? 'Multi Ticker Form' : 'Direct Load'}
+              </p>
+              <p className="text-emerald-600 text-sm">
+                {initialZones.length > 0 
+                  ? 'Zones automatically loaded from Multi Ticker form with your custom settings'
+                  : 'Zones loaded directly with default settings'
+                }
+              </p>
+            </div>
+            {initialZones.length === 0 && (
+              <div className="text-xs text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">
+                💡 Tip: Use Multi Ticker form for custom settings
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -359,6 +455,29 @@ const ZoneChartsTable = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {zones.length === 0 && !isLoading && (
+        <div className="text-center bg-white/80 backdrop-blur-sm rounded-xl p-12 shadow-lg">
+          <div className="text-gray-400 text-6xl mb-4">📊</div>
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">No Zones Loaded</h3>
+          <p className="text-gray-500 mb-6">
+            Load demand zones to view charts with marked proximal and distal lines.
+          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              💡 <strong>Tip:</strong> Use the Multi Ticker form first to set custom parameters, 
+              then navigate here to see the zones with charts.
+            </p>
+            <button
+              onClick={() => fetchMultiZones()}
+              className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors duration-200 font-medium"
+            >
+              Load Default Zones
+            </button>
           </div>
         </div>
       )}

@@ -251,14 +251,14 @@ function MultiDemandZoneForm({ onZonesFetched }) {
         maxBaseCandles: parseInt(formData.maxBaseCandles, 10),
         detectLowerZones: formData.detectLowerZones,
       };
+      
       const response = await axios.post("http://127.0.0.1:8000/multi-demand-zones", payload);
       const rawZonesByTicker = response.data;
-      const allZones = Object.entries(rawZonesByTicker).flatMap(([ticker, zones]) =>
-        zones.map((zone) => ({ ...zone, ticker }))
-      );
-      onZonesFetched(allZones);
+      
+      // Pass both zones and settings to the parent
+      onZonesFetched(rawZonesByTicker, payload, null);
     } catch (error) {
-      onZonesFetched(null, error.response?.data?.detail || "An error occurred while fetching demand zones");
+      onZonesFetched(null, null, error.response?.data?.detail || "An error occurred while fetching demand zones");
     } finally {
       setIsLoading(false);
     }
