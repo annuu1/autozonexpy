@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import StockChart from './StockChart'
+import StockChart from './chart/StockChart'
 
 const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones = [] }) => {
   const [higherInterval, setHigherInterval] = useState('1wk')
