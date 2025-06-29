@@ -1,9 +1,12 @@
 import React, { useState } from 'react'
 import ZoneChart from './chart/ZoneChart'
+import { ChevronDown, ChevronUp, Settings } from 'lucide-react'
 
 const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones = [] }) => {
   const [higherInterval, setHigherInterval] = useState('1wk')
   const [lowerInterval, setLowerInterval] = useState('1d')
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(true)
+  const [isControlsCollapsed, setIsControlsCollapsed] = useState(true)
 
   const higherIntervals = [
     { value: '1mo', label: 'Monthly' },
@@ -29,15 +32,6 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
   const higherZones = higherTimeframeZone ? [higherTimeframeZone] : []
   const lowerZones = lowerTimeframeZones || []
 
-  console.log('DualTimeframeChart props:', {
-    ticker,
-    normalizedTicker,
-    higherTimeframeZone,
-    lowerTimeframeZones,
-    higherZones,
-    lowerZones
-  })
-
   if (!ticker || !higherTimeframeZone) {
     return (
       <div className="text-center bg-white/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
@@ -48,107 +42,104 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
   }
 
   return (
-    <div className="space-y-6">
-      {/* Zone Information */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Zone Information for {normalizedTicker}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Higher Timeframe Zone */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-white/50">
-            <h4 className="font-semibold text-gray-700 mb-3 flex items-center">
-              <span className="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
-              Higher Timeframe Zone
-            </h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Zone ID:</span>
-                <span className="font-mono text-xs">{higherTimeframeZone.zone_id}</span>
+    <div className="space-y-4">
+      {/* Compact Zone Summary */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800">{normalizedTicker}</h3>
+            <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                higherTimeframeZone.pattern === 'RBR' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}>
+                {higherTimeframeZone.pattern}
+              </span>
+              <span>P: {higherTimeframeZone.proximal_line.toFixed(2)}</span>
+              <span>D: {higherTimeframeZone.distal_line.toFixed(2)}</span>
+              <span>Score: {higherTimeframeZone.trade_score.toFixed(1)}</span>
+              <span className={`font-medium ${
+                higherTimeframeZone.freshness === 3 ? 'text-green-600' : 
+                higherTimeframeZone.freshness === 1.5 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                F: {higherTimeframeZone.freshness}
+              </span>
+              {lowerZones.length > 0 && (
+                <span className="text-blue-600 font-medium">+{lowerZones.length} LTF zones</span>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsControlsCollapsed(!isControlsCollapsed)}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
+            >
+              <Settings size={16} />
+              Controls
+              {isControlsCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+            </button>
+            
+            <button
+              onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+            >
+              Details
+              {isDetailsCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Collapsible Controls */}
+        {!isControlsCollapsed && (
+          <div className="mt-4 pt-4 border-t border-blue-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Higher Timeframe:
+                </label>
+                <select
+                  value={higherInterval}
+                  onChange={(e) => setHigherInterval(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg p-2 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                >
+                  {higherIntervals.map(interval => (
+                    <option key={interval.value} value={interval.value}>
+                      {interval.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Pattern:</span>
-                <span className={`font-medium ${
-                  higherTimeframeZone.pattern === 'RBR' ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {higherTimeframeZone.pattern}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Proximal:</span>
-                <span className="font-medium">{higherTimeframeZone.proximal_line.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Distal:</span>
-                <span className="font-medium">{higherTimeframeZone.distal_line.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Score:</span>
-                <span className="font-medium">{higherTimeframeZone.trade_score.toFixed(1)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Freshness:</span>
-                <span className={`font-medium ${
-                  higherTimeframeZone.freshness === 3 ? 'text-green-600' : 
-                  higherTimeframeZone.freshness === 1.5 ? 'text-yellow-600' : 'text-red-600'
-                }`}>
-                  {higherTimeframeZone.freshness}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Base Candles:</span>
-                <span className="font-medium">{higherTimeframeZone.base_candles}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Date:</span>
-                <span className="font-medium text-xs">
-                  {new Date(higherTimeframeZone.end_timestamp || higherTimeframeZone.timestamp).toLocaleDateString()}
-                </span>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lower Timeframe:
+                </label>
+                <select
+                  value={lowerInterval}
+                  onChange={(e) => setLowerInterval(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg p-2 bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                >
+                  {lowerIntervals.map(interval => (
+                    <option key={interval.value} value={interval.value}>
+                      {interval.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
-
-          {/* Lower Timeframe Zones Summary */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-white/50">
-            <h4 className="font-semibold text-gray-700 mb-3 flex items-center">
-              <span className="w-3 h-3 bg-green-500 rounded-full mr-2"></span>
-              Lower Timeframe Zones ({lowerZones.length})
-            </h4>
-            {lowerZones.length > 0 ? (
-              <div className="space-y-2 text-sm max-h-32 overflow-y-auto">
-                {lowerZones.map((zone, index) => (
-                  <div key={index} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0">
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      zone.pattern === 'RBR' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {zone.pattern}
-                    </span>
-                    <span className="text-xs text-gray-600">
-                      {zone.proximal_line.toFixed(2)} - {zone.distal_line.toFixed(2)}
-                    </span>
-                    <span className={`text-xs font-medium ${
-                      zone.freshness === 3 ? 'text-green-600' : 
-                      zone.freshness === 1.5 ? 'text-yellow-600' : 'text-red-600'
-                    }`}>
-                      F:{zone.freshness}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">No coinciding lower timeframe zones</p>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Dual Charts */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      {/* Dual Charts - Full Width */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {/* Higher Timeframe Chart */}
         <ZoneChart 
           ticker={normalizedTicker}
           interval={higherInterval}
           zones={higherZones}
           title={`Higher Timeframe (${higherInterval.toUpperCase()})`}
-          height={400}
+          height={500}
           onIntervalChange={setHigherInterval}
         />
 
@@ -158,51 +149,47 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
           interval={lowerInterval}
           zones={lowerZones}
           title={`Lower Timeframe (${lowerInterval.toUpperCase()})`}
-          height={400}
+          height={500}
           onIntervalChange={setLowerInterval}
         />
       </div>
 
-      {/* Zone Details Table */}
-      {lowerZones.length > 0 && (
+      {/* Collapsible Zone Details */}
+      {!isDetailsCollapsed && lowerZones.length > 0 && (
         <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
+          <div className="p-4 border-b border-gray-200 bg-gray-50/80 backdrop-blur-sm">
             <h3 className="text-lg font-semibold text-gray-800">Lower Timeframe Zone Details</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50/80 backdrop-blur-sm">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Zone ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pattern</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proximal</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distal</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Freshness</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Base Candles</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pattern</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proximal</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distal</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Freshness</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Base</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 </tr>
               </thead>
               <tbody className="bg-white/60 backdrop-blur-sm divide-y divide-gray-200">
                 {lowerZones.map((zone, index) => (
                   <tr key={`${zone.zone_id}-${index}`} className="hover:bg-white/80 transition-colors duration-150">
-                    <td className="px-6 py-4 text-xs text-gray-900 font-mono">
-                      {zone.zone_id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         zone.pattern === 'RBR' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                       }`}>
                         {zone.pattern}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
                       {zone.proximal_line.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       {zone.distal_line.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <span className={`font-medium ${
                         zone.trade_score >= 5 ? 'text-green-600' : 
                         zone.trade_score >= 3 ? 'text-yellow-600' : 'text-red-600'
@@ -210,7 +197,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
                         {zone.trade_score.toFixed(1)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <span className={`font-medium ${
                         zone.freshness === 3 ? 'text-green-600' : 
                         zone.freshness === 1.5 ? 'text-yellow-600' : 'text-red-600'
@@ -218,10 +205,10 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
                         {zone.freshness}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       {zone.base_candles}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       {new Date(zone.end_timestamp || zone.timestamp).toLocaleDateString()}
                     </td>
                   </tr>
