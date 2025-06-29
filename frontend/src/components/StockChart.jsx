@@ -25,12 +25,20 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
       return;
     }
 
-    // Normalize ticker to ensure .NS suffix
-    const normalizedTicker = ticker.toUpperCase().endsWith('.NS') 
-      ? ticker.toUpperCase() 
-      : `${ticker.toUpperCase()}.NS`;
+    // Clean up any existing chart
+    if (chartRef.current) {
+      chartRef.current.remove();
+      chartRef.current = null;
+      candlestickSeriesRef.current = null;
+    }
 
-    console.log('Normalized ticker:', normalizedTicker);
+    // Normalize ticker - remove .NS suffix for API call since backend adds it
+    let normalizedTicker = ticker.toUpperCase();
+    if (normalizedTicker.endsWith('.NS')) {
+      normalizedTicker = normalizedTicker.replace('.NS', '');
+    }
+
+    console.log('Normalized ticker for API:', normalizedTicker);
 
     // Create chart instance
     const chart = createChart(chartContainerRef.current, {
@@ -89,9 +97,11 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
         const startDate = new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         
         console.log(`Making API call for ${normalizedTicker} with interval ${interval} from ${startDate} to ${endDate}`);
+        console.log(`Expected URL: http://localhost:8000/ohlc-data?ticker=${normalizedTicker.toLowerCase()}&start_date=${startDate}&end_date=${endDate}&interval=${interval}`);
         
-        const ohlcData = await getOhlcData(normalizedTicker, interval, startDate, endDate);
+        const ohlcData = await getOhlcData(normalizedTicker.toLowerCase(), interval, startDate, endDate);
         console.log('Raw OHLC data received:', ohlcData?.length, 'records');
+        console.log('First few records:', ohlcData?.slice(0, 3));
         
         if (!Array.isArray(ohlcData) || ohlcData.length === 0) {
           throw new Error(`No OHLC data returned for ${normalizedTicker}`);
