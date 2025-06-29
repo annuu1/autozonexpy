@@ -20,15 +20,38 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
     { value: '5m', label: '5 Minutes' },
   ]
 
+  // Ensure ticker is properly formatted
+  const normalizedTicker = ticker?.toUpperCase().endsWith('.NS') 
+    ? ticker.toUpperCase() 
+    : `${ticker?.toUpperCase()}.NS`
+
   // Prepare zones for charts
   const higherZones = higherTimeframeZone ? [higherTimeframeZone] : []
   const lowerZones = lowerTimeframeZones || []
+
+  console.log('DualTimeframeChart props:', {
+    ticker,
+    normalizedTicker,
+    higherTimeframeZone,
+    lowerTimeframeZones,
+    higherZones,
+    lowerZones
+  })
+
+  if (!ticker || !higherTimeframeZone) {
+    return (
+      <div className="text-center bg-white/80 backdrop-blur-sm rounded-xl p-8 shadow-lg">
+        <p className="text-gray-500 text-lg">No zone data provided for chart display.</p>
+        <p className="text-gray-400 text-sm mt-2">Please select a zone to view its charts.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
       {/* Zone Information */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Zone Information</h3>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Zone Information for {normalizedTicker}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Higher Timeframe Zone */}
           <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-white/50">
@@ -37,6 +60,10 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
               Higher Timeframe Zone
             </h4>
             <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Zone ID:</span>
+                <span className="font-mono text-xs">{higherTimeframeZone.zone_id}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Pattern:</span>
                 <span className={`font-medium ${
@@ -64,6 +91,16 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
                   higherTimeframeZone.freshness === 1.5 ? 'text-yellow-600' : 'text-red-600'
                 }`}>
                   {higherTimeframeZone.freshness}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Base Candles:</span>
+                <span className="font-medium">{higherTimeframeZone.base_candles}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Date:</span>
+                <span className="font-medium text-xs">
+                  {new Date(higherTimeframeZone.end_timestamp || higherTimeframeZone.timestamp).toLocaleDateString()}
                 </span>
               </div>
             </div>
@@ -154,10 +191,10 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
             </h3>
           </div>
           <StockChart 
-            ticker={ticker}
+            ticker={normalizedTicker}
             interval={higherInterval}
             zones={higherZones}
-            chartId="higher-tf"
+            chartId={`higher-tf-${normalizedTicker}-${higherInterval}`}
           />
         </div>
 
@@ -170,10 +207,10 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
             </h3>
           </div>
           <StockChart 
-            ticker={ticker}
+            ticker={normalizedTicker}
             interval={lowerInterval}
             zones={lowerZones}
-            chartId="lower-tf"
+            chartId={`lower-tf-${normalizedTicker}-${lowerInterval}`}
           />
         </div>
       </div>
@@ -188,6 +225,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50/80 backdrop-blur-sm">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Zone ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pattern</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proximal</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distal</th>
@@ -200,6 +238,9 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
               <tbody className="bg-white/60 backdrop-blur-sm divide-y divide-gray-200">
                 {lowerZones.map((zone, index) => (
                   <tr key={`${zone.zone_id}-${index}`} className="hover:bg-white/80 transition-colors duration-150">
+                    <td className="px-6 py-4 text-xs text-gray-900 font-mono">
+                      {zone.zone_id}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         zone.pattern === 'RBR' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
