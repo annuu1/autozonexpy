@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
-import DualTimeframeChart from './DualTimeframeChart'
-import { ChevronDown, ChevronUp, Maximize2, Minimize2, Filter, Download, RefreshCw } from 'lucide-react'
+import { ChevronDown, ChevronUp, Maximize2, Minimize2, RefreshCw } from 'lucide-react'
+
+// Import modular components
+import Button from './ui/Button'
+import Card from './ui/Card'
+import Modal from './ui/Modal'
+import CollapsibleSection from './ui/CollapsibleSection'
+import ZoneFilters from './filters/ZoneFilters'
+import ZoneTable from './tables/ZoneTable'
+import DualTimeframeChart from './charts/DualTimeframeChart'
 
 const ZoneChartsTable = ({ initialZones = [], initialSettings = null, onZonesUpdate }) => {
   const [zones, setZones] = useState(initialZones)
@@ -11,17 +19,18 @@ const ZoneChartsTable = ({ initialZones = [], initialSettings = null, onZonesUpd
   const [selectedZone, setSelectedZone] = useState(null)
   const [showCharts, setShowCharts] = useState(false)
   
-  // Collapse states
-  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(true)
+  // UI state
   const [isTableCollapsed, setIsTableCollapsed] = useState(false)
   const [isFullScreen, setIsFullScreen] = useState(false)
   
-  // Filter states
-  const [freshnessFilter, setFreshnessFilter] = useState("all")
-  const [sortBy, setSortBy] = useState("timestamp")
-  const [sortOrder, setSortOrder] = useState("desc")
-  const [tickerFilter, setTickerFilter] = useState("all")
-  const [patternFilter, setPatternFilter] = useState("all")
+  // Filter state
+  const [filters, setFilters] = useState({
+    freshnessFilter: "all",
+    sortBy: "timestamp",
+    sortOrder: "desc",
+    tickerFilter: "all",
+    patternFilter: "all"
+  })
 
   // Update zones when initialZones prop changes
   useEffect(() => {
@@ -43,7 +52,6 @@ const ZoneChartsTable = ({ initialZones = [], initialSettings = null, onZonesUpd
     setError(null)
 
     try {
-      // Use provided settings or default settings
       const payload = customSettings || settings || {
         start_date: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         end_date: new Date().toISOString().split('T')[0],
@@ -67,7 +75,6 @@ const ZoneChartsTable = ({ initialZones = [], initialSettings = null, onZonesUpd
       const response = await axios.post('http://127.0.0.1:8000/multi-demand-zones', payload)
       const rawZonesByTicker = response.data
       
-      // Transform the data structure to match the expected format
       const allZones = Object.entries(rawZonesByTicker).flatMap(([ticker, zones]) =>
         zones.map((zone) => ({ ...zone, ticker }))
       )
@@ -75,7 +82,6 @@ const ZoneChartsTable = ({ initialZones = [], initialSettings = null, onZonesUpd
       setZones(allZones)
       setSettings(payload)
       
-      // Update parent component if callback provided
       if (onZonesUpdate) {
         onZonesUpdate(allZones)
       }
@@ -94,19 +100,18 @@ const ZoneChartsTable = ({ initialZones = [], initialSettings = null, onZonesUpd
   const uniqueTickers = [...new Set(zones.map(zone => zone.ticker))].sort()
   const uniquePatterns = [...new Set(zones.map(zone => zone.pattern))].sort()
 
-  // Filter zones
+  // Filter and sort zones
   const filteredZones = zones.filter(zone => {
-    const freshnessMatch = freshnessFilter === "all" || zone.freshness === parseFloat(freshnessFilter)
-    const tickerMatch = tickerFilter === "all" || zone.ticker === tickerFilter
-    const patternMatch = patternFilter === "all" || zone.pattern === patternFilter
+    const freshnessMatch = filters.freshnessFilter === "all" || zone.freshness === parseFloat(filters.freshnessFilter)
+    const tickerMatch = filters.tickerFilter === "all" || zone.ticker === filters.tickerFilter
+    const patternMatch = filters.patternFilter === "all" || zone.pattern === filters.patternFilter
     return freshnessMatch && tickerMatch && patternMatch
   })
 
-  // Sort zones
   const sortedZones = [...filteredZones].sort((a, b) => {
     let aValue, bValue
     
-    switch (sortBy) {
+    switch (filters.sortBy) {
       case "timestamp":
         aValue = new Date(a.end_timestamp || a.timestamp)
         bValue = new Date(b.end_timestamp || b.timestamp)
@@ -127,58 +132,31 @@ const ZoneChartsTable = ({ initialZones = [], initialSettings = null, onZonesUpd
         return 0
     }
     
-    if (sortOrder === "asc") {
+    if (filters.sortOrder === "asc") {
       return aValue > bValue ? 1 : -1
     } else {
       return aValue < bValue ? 1 : -1
     }
   })
 
-  const getScoreColor = (score) => {
-    if (score >= 5) return "text-green-600 font-semibold"
-    if (score >= 3) return "text-yellow-600 font-medium"
-    return "text-red-600"
-  }
-
-  const getFreshnessColor = (freshness) => {
-    if (freshness === 3) return "text-green-600 font-semibold"
-    if (freshness === 1.5) return "text-yellow-600 font-medium"
-    return "text-red-600"
-  }
-
   const handleViewCharts = (zone) => {
     setSelectedZone(zone)
     setShowCharts(true)
-    setIsFullScreen(true) // Auto-expand to full screen when viewing charts
+    setIsFullScreen(true)
   }
 
   const downloadCSV = () => {
     const csvHeader = [
-      "Zone ID",
-      "Ticker",
-      "Proximal",
-      "Distal",
-      "Trade Score",
-      "Pattern",
-      "Start Timestamp",
-      "End Timestamp",
-      "Base Candles",
-      "Freshness",
-      "Coinciding Zones Count"
+      "Zone ID", "Ticker", "Proximal", "Distal", "Trade Score", "Pattern",
+      "Start Timestamp", "End Timestamp", "Base Candles", "Freshness", "Coinciding Zones Count"
     ]
 
     const csvRows = sortedZones.map(zone => [
-      zone.zone_id,
-      zone.ticker,
-      zone.proximal_line.toFixed(2),
-      zone.distal_line.toFixed(2),
-      zone.trade_score.toFixed(2),
-      zone.pattern,
+      zone.zone_id, zone.ticker, zone.proximal_line.toFixed(2), zone.distal_line.toFixed(2),
+      zone.trade_score.toFixed(2), zone.pattern,
       new Date(zone.start_timestamp || zone.timestamp).toLocaleString(),
       new Date(zone.end_timestamp || zone.timestamp).toLocaleString(),
-      zone.base_candles,
-      zone.freshness,
-      zone.coinciding_lower_zones?.length || 0
+      zone.base_candles, zone.freshness, zone.coinciding_lower_zones?.length || 0
     ].join(","))
 
     const csvContent = [csvHeader.join(","), ...csvRows].join("\n")
@@ -195,299 +173,125 @@ const ZoneChartsTable = ({ initialZones = [], initialSettings = null, onZonesUpd
   }
 
   return (
-    <div className="space-y-4">
-      {/* Compact Header */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-white/20">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex-1">
-            <h2 className="text-xl font-bold text-gray-800">Zone Charts Table</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {zones.length > 0 && settings ? (
-                <>
-                  {zones.length} zones loaded • {settings.higher_interval} → {settings.lower_interval}
-                </>
-              ) : (
-                "Load demand zones and view interactive charts"
-              )}
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {zones.length > 0 && (
-              <>
-                <button
-                  onClick={() => setIsFiltersCollapsed(!isFiltersCollapsed)}
-                  className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
-                >
-                  <Filter size={16} />
-                  Filters
-                  {isFiltersCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                </button>
-                
-                <button
-                  onClick={() => setIsTableCollapsed(!isTableCollapsed)}
-                  className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
-                >
-                  {isTableCollapsed ? 'Show' : 'Hide'} Table
-                  {isTableCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                </button>
-                
-                <button
-                  onClick={() => fetchMultiZones()}
-                  disabled={isLoading}
-                  className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 disabled:opacity-50 transition-colors text-sm"
-                >
-                  <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-                  Refresh
-                </button>
-              </>
-            )}
+    <div className="space-y-4 h-full">
+      {/* Header */}
+      <Card>
+        <Card.Content className="!p-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-gray-800">Zone Charts Table</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {zones.length > 0 && settings ? (
+                  <>
+                    {zones.length} zones loaded • {settings.higher_interval} → {settings.lower_interval}
+                  </>
+                ) : (
+                  "Load demand zones and view interactive charts"
+                )}
+              </p>
+            </div>
             
-            <button
-              onClick={() => fetchMultiZones()}
-              disabled={isLoading}
-              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 transition-colors font-medium text-sm"
-            >
-              {isLoading ? (
+            <div className="flex items-center gap-2">
+              {zones.length > 0 && (
                 <>
-                  <RefreshCw size={16} className="animate-spin" />
-                  Loading...
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsTableCollapsed(!isTableCollapsed)}
+                    icon={isTableCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                  >
+                    {isTableCollapsed ? 'Show' : 'Hide'} Table
+                  </Button>
+                  
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => fetchMultiZones()}
+                    disabled={isLoading}
+                    icon={<RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />}
+                  >
+                    Refresh
+                  </Button>
                 </>
-              ) : zones.length > 0 ? (
-                'Load New'
-              ) : (
-                'Load Zones'
               )}
-            </button>
+              
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => fetchMultiZones()}
+                disabled={isLoading}
+                loading={isLoading}
+              >
+                {zones.length > 0 ? 'Load New' : 'Load Zones'}
+              </Button>
+            </div>
           </div>
-        </div>
-      </div>
+        </Card.Content>
+      </Card>
 
       {/* Error Display */}
       {error && (
-        <div className="bg-red-50/80 backdrop-blur-sm rounded-xl p-4 border border-red-200">
-          <p className="text-red-700 font-medium">Error:</p>
-          <p className="text-red-600 text-sm">{error}</p>
-        </div>
+        <Card className="border-red-200 bg-red-50/80">
+          <Card.Content className="!p-4">
+            <p className="text-red-700 font-medium">Error:</p>
+            <p className="text-red-600 text-sm">{error}</p>
+          </Card.Content>
+        </Card>
       )}
 
-      {/* Collapsible Filters */}
-      {zones.length > 0 && !isFiltersCollapsed && (
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-white/20">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ticker:</label>
-              <select
-                value={tickerFilter}
-                onChange={(e) => setTickerFilter(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="all">All ({uniqueTickers.length})</option>
-                {uniqueTickers.map(ticker => (
-                  <option key={ticker} value={ticker}>{ticker}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Freshness:</label>
-              <select
-                value={freshnessFilter}
-                onChange={(e) => setFreshnessFilter(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="all">All</option>
-                <option value="3">Fresh (3.0)</option>
-                <option value="1.5">Tested (1.5)</option>
-                <option value="0">Breached (0.0)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pattern:</label>
-              <select
-                value={patternFilter}
-                onChange={(e) => setPatternFilter(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="all">All</option>
-                {uniquePatterns.map(pattern => (
-                  <option key={pattern} value={pattern}>{pattern}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sort:</label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="timestamp">Date</option>
-                <option value="score">Score</option>
-                <option value="freshness">Freshness</option>
-                <option value="ticker">Ticker</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Order:</label>
-              <div className="flex gap-2">
-                <select
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value)}
-                  className="flex-1 border border-gray-300 rounded-lg p-2 text-sm bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="desc">↓</option>
-                  <option value="asc">↑</option>
-                </select>
-                <button
-                  onClick={downloadCSV}
-                  className="flex items-center gap-1 bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm"
-                >
-                  <Download size={14} />
-                  CSV
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-3 text-sm text-gray-600">
-            Showing {sortedZones.length} of {zones.length} zones
-          </div>
-        </div>
+      {/* Filters */}
+      {zones.length > 0 && (
+        <ZoneFilters
+          filters={filters}
+          onFilterChange={setFilters}
+          uniqueTickers={uniqueTickers}
+          uniquePatterns={uniquePatterns}
+          totalZones={zones.length}
+          filteredCount={sortedZones.length}
+          onDownloadCSV={downloadCSV}
+          defaultCollapsed={true}
+        />
       )}
 
-      {/* Collapsible Table */}
-      {zones.length > 0 && !isTableCollapsed && (
-        <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-xl border border-white/20 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50/80 backdrop-blur-sm">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Symbol</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Range</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Score</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Pattern</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fresh</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">LTF</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white/60 backdrop-blur-sm divide-y divide-gray-200">
-                {sortedZones.map((zone, index) => (
-                  <tr key={`${zone.zone_id}-${index}`} className="hover:bg-white/80 transition-colors duration-150">
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-gray-900">{zone.ticker}</div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="text-xs text-gray-900">
-                        <div>P: {zone.proximal_line.toFixed(2)}</div>
-                        <div className="text-gray-600">D: {zone.distal_line.toFixed(2)}</div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`text-sm ${getScoreColor(zone.trade_score)}`}>
-                        {zone.trade_score.toFixed(1)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        zone.pattern === 'RBR' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {zone.pattern}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`text-sm font-medium ${getFreshnessColor(zone.freshness)}`}>
-                        {zone.freshness}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900">
-                      {new Date(zone.end_timestamp || zone.timestamp).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs">
-                      {zone.coinciding_lower_zones?.length > 0 ? (
-                        <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-                          {zone.coinciding_lower_zones.length}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <button
-                        onClick={() => handleViewCharts(zone)}
-                        className="inline-flex items-center px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full hover:bg-emerald-200 transition-colors duration-150 font-medium text-xs"
-                      >
-                        📈 Charts
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Compact Zone Summary */}
-      {zones.length > 0 && isTableCollapsed && (
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-white/20">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div className="bg-blue-50/80 backdrop-blur-sm rounded-lg p-3">
-              <div className="text-2xl font-bold text-blue-600">{zones.length}</div>
-              <div className="text-sm text-blue-700">Total Zones</div>
-            </div>
-            <div className="bg-green-50/80 backdrop-blur-sm rounded-lg p-3">
-              <div className="text-2xl font-bold text-green-600">
-                {zones.filter(z => z.freshness === 3).length}
-              </div>
-              <div className="text-sm text-green-700">Fresh Zones</div>
-            </div>
-            <div className="bg-yellow-50/80 backdrop-blur-sm rounded-lg p-3">
-              <div className="text-2xl font-bold text-yellow-600">
-                {zones.filter(z => z.freshness === 1.5).length}
-              </div>
-              <div className="text-sm text-yellow-700">Tested Zones</div>
-            </div>
-            <div className="bg-purple-50/80 backdrop-blur-sm rounded-lg p-3">
-              <div className="text-2xl font-bold text-purple-600">
-                {zones.reduce((total, zone) => total + (zone.coinciding_lower_zones?.length || 0), 0)}
-              </div>
-              <div className="text-sm text-purple-700">LTF Zones</div>
-            </div>
-          </div>
-        </div>
+      {/* Table */}
+      {zones.length > 0 && (
+        <ZoneTable
+          zones={sortedZones}
+          onViewCharts={handleViewCharts}
+          isCollapsed={isTableCollapsed}
+        />
       )}
 
       {/* Empty State */}
       {zones.length === 0 && !isLoading && (
-        <div className="text-center bg-white/80 backdrop-blur-sm rounded-xl p-12 shadow-lg">
-          <div className="text-gray-400 text-6xl mb-4">📊</div>
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No Zones Loaded</h3>
-          <p className="text-gray-500 mb-6">
-            Load demand zones to view interactive charts with marked levels.
-          </p>
-          <button
-            onClick={() => fetchMultiZones()}
-            className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors duration-200 font-medium"
-          >
-            Load Default Zones
-          </button>
-        </div>
+        <Card>
+          <Card.Content className="text-center p-12">
+            <div className="text-gray-400 text-6xl mb-4">📊</div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Zones Loaded</h3>
+            <p className="text-gray-500 mb-6">
+              Load demand zones to view interactive charts with marked levels.
+            </p>
+            <Button
+              variant="primary"
+              onClick={() => fetchMultiZones()}
+            >
+              Load Default Zones
+            </Button>
+          </Card.Content>
+        </Card>
       )}
 
       {/* Full-Screen Charts Modal */}
-      {showCharts && selectedZone && (
-        <div className={`fixed inset-0 z-50 bg-black/30 backdrop-blur-sm ${isFullScreen ? 'p-2' : 'flex items-center justify-center p-4'}`}>
-          <div className={`bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/30 overflow-hidden ${
-            isFullScreen ? 'w-full h-full' : 'w-full max-w-7xl max-h-[90vh]'
-          }`}>
+      <Modal
+        isOpen={showCharts && selectedZone}
+        onClose={() => setShowCharts(false)}
+        fullScreen={isFullScreen}
+        className="!p-0"
+      >
+        {selectedZone && (
+          <div className="h-full flex flex-col">
             {/* Modal Header */}
-            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50/80 backdrop-blur-sm">
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50/80 backdrop-blur-sm flex-shrink-0">
               <div className="flex items-center gap-4">
                 <div>
                   <h2 className="text-xl font-bold text-gray-800">
@@ -498,27 +302,28 @@ const ZoneChartsTable = ({ initialZones = [], initialSettings = null, onZonesUpd
                   </p>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsFullScreen(!isFullScreen)}
-                    className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
-                  >
-                    {isFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                    {isFullScreen ? 'Windowed' : 'Full Screen'}
-                  </button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsFullScreen(!isFullScreen)}
+                  icon={isFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                >
+                  {isFullScreen ? 'Windowed' : 'Full Screen'}
+                </Button>
               </div>
               
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setShowCharts(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors duration-150"
+                className="!p-2"
               >
                 ✕
-              </button>
+              </Button>
             </div>
 
-            {/* Chart Content */}
-            <div className={`overflow-auto ${isFullScreen ? 'h-[calc(100vh-80px)]' : 'max-h-[80vh]'} p-4`}>
+            {/* Chart Content - Full Height */}
+            <div className="flex-1 overflow-auto p-4">
               <DualTimeframeChart 
                 ticker={selectedZone.ticker}
                 higherTimeframeZone={selectedZone}
@@ -526,8 +331,8 @@ const ZoneChartsTable = ({ initialZones = [], initialSettings = null, onZonesUpd
               />
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
 }
