@@ -77,6 +77,58 @@ const ZoneChart = ({
     }
   }
 
+  // Improved date parsing function
+  const parseDate = (dateString) => {
+    try {
+      // Handle different date formats
+      let date
+      
+      if (typeof dateString === 'string') {
+        // Try parsing as ISO string first
+        date = new Date(dateString)
+        
+        // If invalid, try other common formats
+        if (isNaN(date.getTime())) {
+          // Try parsing as timestamp
+          const timestamp = parseInt(dateString)
+          if (!isNaN(timestamp)) {
+            date = new Date(timestamp)
+          }
+        }
+      } else if (typeof dateString === 'number') {
+        // Handle timestamp
+        date = new Date(dateString)
+      } else {
+        date = new Date(dateString)
+      }
+      
+      // Validate the date
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date:', dateString)
+        return null
+      }
+      
+      return date
+    } catch (error) {
+      console.warn('Error parsing date:', dateString, error)
+      return null
+    }
+  }
+
+  // Format date for chart (lightweight-charts expects YYYY-MM-DD or timestamp)
+  const formatDateForChart = (dateString, intervalValue) => {
+    const date = parseDate(dateString)
+    if (!date) return null
+    
+    // For intraday intervals, use timestamp
+    if (['1h', '30m', '15m', '5m'].includes(intervalValue)) {
+      return Math.floor(date.getTime() / 1000) // Unix timestamp in seconds
+    } else {
+      // For daily and above, use YYYY-MM-DD format
+      return date.toISOString().split('T')[0]
+    }
+  }
+
   // Clear all existing price lines
   const clearPriceLines = () => {
     if (candlestickSeriesRef.current && priceLineRefs.current.length > 0) {
@@ -126,7 +178,7 @@ const ZoneChart = ({
         },
         timeScale: {
           timeVisible: true,
-          secondsVisible: false,
+          secondsVisible: ['1h', '30m', '15m', '5m'].includes(interval),
         },
         rightPriceScale: {
           borderColor: '#cccccc',
@@ -165,7 +217,7 @@ const ZoneChart = ({
       console.error('Error initializing chart:', error)
       setError('Failed to initialize chart')
     }
-  }, [height])
+  }, [height, interval])
 
   // Load chart data
   const loadChartData = async (startDate, endDate, isLoadMore = false) => {
@@ -191,29 +243,68 @@ const ZoneChart = ({
 
       const candles = await getOhlcData(normalizedTicker, interval, startDateStr, endDateStr)
 
-      const processedCandles = (candles || []).map(item => ({
-        time: new Date(item.Date).toISOString().split('T')[0],
-        open: parseFloat(item.Open),
-        high: parseFloat(item.High),
-        low: parseFloat(item.Low),
-        close: parseFloat(item.Close),
-      })).filter(item => !isNaN(item.open))
-
-      if (processedCandles.length === 0) {
+      if (!candles || candles.length === 0) {
         if (!isLoadMore) {
           setError('No chart data available for the selected period')
         }
         return
       }
 
+      console.log('Raw candles data:', candles.slice(0, 3)) // Log first 3 items for debugging
+
+      const processedCandles = candles.map((item, index) => {
+        try {
+          const time = formatDateForChart(item.Date, interval)
+          const open = parseFloat(item.Open)
+          const high = parseFloat(item.High)
+          const low = parseFloat(item.Low)
+          const close = parseFloat(item.Close)
+
+          // Validate all values
+          if (time === null || isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) {
+            console.warn(`Invalid candle data at index ${index}:`, item)
+            return null
+          }
+
+          return {
+            time,
+            open,
+            high,
+            low,
+            close,
+          }
+        } catch (error) {
+          console.warn(`Error processing candle at index ${index}:`, item, error)
+          return null
+        }
+      }).filter(item => item !== null)
+
+      if (processedCandles.length === 0) {
+        if (!isLoadMore) {
+          setError('No valid chart data could be processed')
+        }
+        return
+      }
+
+      console.log('Processed candles:', processedCandles.slice(0, 3)) // Log first 3 processed items
+
       let newChartData
       if (isLoadMore && chartData.length > 0) {
         // Merge with existing data, avoiding duplicates
         const existingTimes = new Set(chartData.map(item => item.time))
         const newCandles = processedCandles.filter(item => !existingTimes.has(item.time))
-        newChartData = [...newCandles, ...chartData].sort((a, b) => new Date(a.time) - new Date(b.time))
+        newChartData = [...newCandles, ...chartData].sort((a, b) => {
+          // Handle both timestamp and date string sorting
+          const aTime = typeof a.time === 'number' ? a.time : new Date(a.time).getTime()
+          const bTime = typeof b.time === 'number' ? b.time : new Date(b.time).getTime()
+          return aTime - bTime
+        })
       } else {
-        newChartData = processedCandles.sort((a, b) => new Date(a.time) - new Date(b.time))
+        newChartData = processedCandles.sort((a, b) => {
+          const aTime = typeof a.time === 'number' ? a.time : new Date(a.time).getTime()
+          const bTime = typeof b.time === 'number' ? b.time : new Date(b.time).getTime()
+          return aTime - bTime
+        })
       }
 
       setChartData(newChartData)
@@ -410,7 +501,7 @@ const ZoneChart = ({
                 <span className="flex items-center gap-2">
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 0 01-16 0z" />
                   </svg>
                   Loading...
                 </span>
