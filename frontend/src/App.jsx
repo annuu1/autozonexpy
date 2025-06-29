@@ -6,6 +6,7 @@ import CoincidingZoneForm from "./components/CoincidingZoneForm.jsx";
 import CoincidingZoneTable from "./components/CoincidingZoneTable.jsx";
 import MultiDemandZoneForm from "./components/MultiDemandZoneForm.jsx";
 import MultiDemandZoneTable from "./components/MultiDemandZoneTable.jsx";
+import StockChart from "./components/StockChart.jsx";
 
 function App() {
   const [zones, setZones] = useState([]);
@@ -89,6 +90,14 @@ function App() {
             element={
               <div className="text-center mt-16 text-gray-500 text-xl">
                 Please select a route from above.
+              </div>
+            }
+          />
+          <Route
+            path="/stock-chart"
+            element={
+              <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl mx-auto">
+                <StockChart />
               </div>
             }
           />
