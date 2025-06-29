@@ -43,6 +43,18 @@ const StockChart = ({ ticker="abb", interval = '1d', selectedZone = null }) => {
     });
     candlestickSeriesRef.current = candlestickSeries;
 
+    // Add horizontal price line at 6069
+candlestickSeries.createPriceLine({
+  price: 6069,
+  color: '#FF9800',
+  lineWidth: 1,
+  lineStyle: 0, // 0 = Solid, 1 = Dotted, 2 = Dashed, 3 = LargeDashed, 4 = SparseDotted
+  axisLabelVisible: true,
+  title: '6069 ₹ Level',
+});
+
+
+
     // Fetch and set candlestick data
     const fetchAndSetData = async () => {
       try {
