@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType } from 'lightweight-charts';
 import { getOhlcData } from '../services/api';
 
-const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zones = [] }) => {
+const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zones = [], chartId = "default" }) => {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candlestickSeriesRef = useRef(null);
@@ -11,7 +11,7 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
   const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
-    console.log('Chart component mounted with ticker:', ticker);
+    console.log('Chart component mounted with ticker:', ticker, 'chartId:', chartId);
 
     if (!chartContainerRef.current) return;
 
@@ -71,7 +71,7 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
         const endDate = new Date().toISOString().split('T')[0];
         
         const ohlcData = await getOhlcData(ticker, interval, startDate, endDate);
-        console.log('Raw backend OHLC data:', ohlcData);
+        console.log('Raw backend OHLC data for', chartId, ':', ohlcData);
         
         if (!Array.isArray(ohlcData) || ohlcData.length === 0) {
           throw new Error('No OHLC data returned from backend');
@@ -105,27 +105,30 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
 
         candlestickSeries.setData(processedData);
         setChartData(processedData);
-        console.log('Mapped chart data:', processedData);
+        console.log('Mapped chart data for', chartId, ':', processedData);
 
         // Add zone lines if zones are provided
         if (zones && zones.length > 0) {
           zones.forEach((zone, index) => {
-            // Add proximal line
+            const baseColor = zone.pattern === 'RBR' ? '#26a69a' : '#ef5350';
+            const freshnessAlpha = zone.freshness === 3 ? '1' : zone.freshness === 1.5 ? '0.7' : '0.4';
+            
+            // Add proximal line (solid)
             candlestickSeries.createPriceLine({
               price: zone.proximal_line,
-              color: zone.pattern === 'RBR' ? '#26a69a' : '#ef5350',
+              color: baseColor,
               lineWidth: 2,
-              lineStyle: 0,
+              lineStyle: 0, // solid
               axisLabelVisible: true,
-              title: `${zone.pattern} Proximal (${zone.freshness})`,
+              title: `${zone.pattern} Proximal (F:${zone.freshness})`,
             });
 
-            // Add distal line
+            // Add distal line (dashed)
             candlestickSeries.createPriceLine({
               price: zone.distal_line,
-              color: zone.pattern === 'RBR' ? '#26a69a' : '#ef5350',
+              color: baseColor,
               lineWidth: 1,
-              lineStyle: 1,
+              lineStyle: 1, // dashed
               axisLabelVisible: true,
               title: `${zone.pattern} Distal`,
             });
@@ -136,7 +139,7 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
         chart.timeScale().fitContent();
         
       } catch (error) {
-        console.error('Error fetching OHLC data:', error);
+        console.error('Error fetching OHLC data for', chartId, ':', error);
         setError(error.message);
       } finally {
         setIsLoading(false);
@@ -158,13 +161,13 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
 
     // Cleanup on unmount
     return () => {
-      console.log('Cleaning up chart');
+      console.log('Cleaning up chart', chartId);
       window.removeEventListener('resize', handleResize);
       if (chart) {
         chart.remove();
       }
     };
-  }, [ticker, interval, zones]);
+  }, [ticker, interval, zones, chartId]);
 
   if (isLoading) {
     return (
@@ -200,6 +203,31 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
         </p>
       </div>
       <div ref={chartContainerRef} className="w-full h-[500px] rounded-lg overflow-hidden" />
+      
+      {/* Zone Legend */}
+      {zones && zones.length > 0 && (
+        <div className="mt-4 p-3 bg-gray-50/80 backdrop-blur-sm rounded-lg">
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">Zone Legend:</h4>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <div className="flex items-center space-x-1">
+              <div className="w-4 h-0.5 bg-green-500"></div>
+              <span>RBR Zones</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-4 h-0.5 bg-red-500"></div>
+              <span>DBR Zones</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-4 h-0.5 border-t-2 border-gray-600"></div>
+              <span>Proximal (Solid)</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-4 h-0.5 border-t border-dashed border-gray-600"></div>
+              <span>Distal (Dashed)</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

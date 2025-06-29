@@ -7,6 +7,7 @@ import CoincidingZoneTable from "./components/CoincidingZoneTable.jsx";
 import MultiDemandZoneForm from "./components/MultiDemandZoneForm.jsx";
 import MultiDemandZoneTable from "./components/MultiDemandZoneTable.jsx";
 import ZoneCharts from "./components/ZoneCharts.jsx";
+import ZoneChartsTable from "./components/ZoneChartsTable.jsx";
 
 function App() {
   const [zones, setZones] = useState([]);
@@ -44,6 +45,12 @@ function App() {
               className="px-6 py-3 bg-white/80 backdrop-blur-sm text-purple-700 font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-white/90 transition-all duration-200 border border-purple-200"
             >
               Multi Ticker Zones
+            </Link>
+            <Link
+              to="/zone-charts-table"
+              className="px-6 py-3 bg-white/80 backdrop-blur-sm text-emerald-700 font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-white/90 transition-all duration-200 border border-emerald-200"
+            >
+              Zone Charts Table
             </Link>
             <Link
               to="/stock-chart"
@@ -91,6 +98,15 @@ function App() {
                 <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
                   <MultiDemandZoneForm onZonesFetched={setZones} />
                   <MultiDemandZoneTable zones={zones} />
+                </div>
+              }
+            />
+
+            <Route
+              path="/zone-charts-table"
+              element={
+                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+                  <ZoneChartsTable />
                 </div>
               }
             />
