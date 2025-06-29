@@ -46,54 +46,60 @@ const ZoneChart = ({
       chartRef.current.remove();
     }
 
-    const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: 'white' },
-        textColor: 'black',
-      },
-      width: chartContainerRef.current.clientWidth,
-      height: height,
-      grid: {
-        vertLines: { color: '#e0e0e0' },
-        horzLines: { color: '#e0e0e0' },
-      },
-      timeScale: {
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      rightPriceScale: {
-        borderColor: '#cccccc',
-      },
-      crosshair: {
-        mode: 1,
-      },
-    });
+    try {
+      const chart = createChart(chartContainerRef.current, {
+        layout: {
+          background: { type: ColorType.Solid, color: 'white' },
+          textColor: 'black',
+        },
+        width: chartContainerRef.current.clientWidth,
+        height: height,
+        grid: {
+          vertLines: { color: '#e0e0e0' },
+          horzLines: { color: '#e0e0e0' },
+        },
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: false,
+        },
+        rightPriceScale: {
+          borderColor: '#cccccc',
+        },
+        crosshair: {
+          mode: 1,
+        },
+      });
 
-    chartRef.current = chart;
+      chartRef.current = chart;
 
-    const candlestickSeries = chart.addCandlestickSeries({
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      borderVisible: false,
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
-    });
+      // Use the correct method name for adding candlestick series
+      const candlestickSeries = chart.addCandlestickSeries({
+        upColor: '#26a69a',
+        downColor: '#ef5350',
+        borderVisible: false,
+        wickUpColor: '#26a69a',
+        wickDownColor: '#ef5350',
+      });
 
-    candlestickSeriesRef.current = candlestickSeries;
+      candlestickSeriesRef.current = candlestickSeries;
 
-    const handleResize = () => {
-      if (chartRef.current && chartContainerRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-        });
-      }
-    };
+      const handleResize = () => {
+        if (chartRef.current && chartContainerRef.current) {
+          chartRef.current.applyOptions({
+            width: chartContainerRef.current.clientWidth,
+          });
+        }
+      };
 
-    window.addEventListener('resize', handleResize);
+      window.addEventListener('resize', handleResize);
 
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    } catch (error) {
+      console.error('Error initializing chart:', error);
+      setError('Failed to initialize chart');
+    }
   }, [height]);
 
   // Load chart data and zones
@@ -132,6 +138,11 @@ const ZoneChart = ({
 
         console.log('Processed candles:', processedCandles.length);
 
+        if (processedCandles.length === 0) {
+          setError('No chart data available for the selected period');
+          return;
+        }
+
         candlestickSeriesRef.current.setData(processedCandles);
 
         // Add demand zone lines
@@ -159,73 +170,81 @@ const ZoneChart = ({
     console.log('Adding zone lines for:', zonesToAdd);
 
     zonesToAdd.forEach((zone, index) => {
-      // Generate colors for different zones
-      const colors = [
-        { proximal: '#00796B', distal: '#004D40' }, // Teal
-        { proximal: '#1976D2', distal: '#0D47A1' }, // Blue
-        { proximal: '#7B1FA2', distal: '#4A148C' }, // Purple
-        { proximal: '#F57C00', distal: '#E65100' }, // Orange
-        { proximal: '#C62828', distal: '#B71C1C' }, // Red
-      ];
-      
-      const colorSet = colors[index % colors.length];
-      
-      // Add proximal line
-      if (zone.proximal_line) {
-        candlestickSeriesRef.current.createPriceLine({
-          price: zone.proximal_line,
-          color: colorSet.proximal,
-          lineWidth: 2,
-          lineStyle: 0, // Solid line
-          axisLabelVisible: true,
-          title: `${zone.pattern || 'Zone'} Proximal (${zone.proximal_line.toFixed(2)})`,
-        });
-      }
+      try {
+        // Generate colors for different zones
+        const colors = [
+          { proximal: '#00796B', distal: '#004D40' }, // Teal
+          { proximal: '#1976D2', distal: '#0D47A1' }, // Blue
+          { proximal: '#7B1FA2', distal: '#4A148C' }, // Purple
+          { proximal: '#F57C00', distal: '#E65100' }, // Orange
+          { proximal: '#C62828', distal: '#B71C1C' }, // Red
+        ];
+        
+        const colorSet = colors[index % colors.length];
+        
+        // Add proximal line
+        if (zone.proximal_line && typeof zone.proximal_line === 'number') {
+          candlestickSeriesRef.current.createPriceLine({
+            price: zone.proximal_line,
+            color: colorSet.proximal,
+            lineWidth: 2,
+            lineStyle: 0, // Solid line
+            axisLabelVisible: true,
+            title: `${zone.pattern || 'Zone'} Proximal (${zone.proximal_line.toFixed(2)})`,
+          });
+        }
 
-      // Add distal line
-      if (zone.distal_line) {
-        candlestickSeriesRef.current.createPriceLine({
-          price: zone.distal_line,
-          color: colorSet.distal,
-          lineWidth: 2,
-          lineStyle: 1, // Dashed line
-          axisLabelVisible: true,
-          title: `${zone.pattern || 'Zone'} Distal (${zone.distal_line.toFixed(2)})`,
-        });
-      }
+        // Add distal line
+        if (zone.distal_line && typeof zone.distal_line === 'number') {
+          candlestickSeriesRef.current.createPriceLine({
+            price: zone.distal_line,
+            color: colorSet.distal,
+            lineWidth: 2,
+            lineStyle: 1, // Dashed line
+            axisLabelVisible: true,
+            title: `${zone.pattern || 'Zone'} Distal (${zone.distal_line.toFixed(2)})`,
+          });
+        }
 
-      // Add coinciding lower zones if they exist
-      if (zone.coinciding_lower_zones && zone.coinciding_lower_zones.length > 0) {
-        zone.coinciding_lower_zones.forEach((lowerZone, lowerIndex) => {
-          const lowerColorSet = {
-            proximal: `rgba(${76 + lowerIndex * 30}, ${175 + lowerIndex * 20}, ${80 + lowerIndex * 25}, 0.7)`,
-            distal: `rgba(${56 + lowerIndex * 25}, ${142 + lowerIndex * 15}, ${60 + lowerIndex * 20}, 0.7)`
-          };
+        // Add coinciding lower zones if they exist
+        if (zone.coinciding_lower_zones && Array.isArray(zone.coinciding_lower_zones) && zone.coinciding_lower_zones.length > 0) {
+          zone.coinciding_lower_zones.forEach((lowerZone, lowerIndex) => {
+            try {
+              const lowerColorSet = {
+                proximal: `rgba(${76 + lowerIndex * 30}, ${175 + lowerIndex * 20}, ${80 + lowerIndex * 25}, 0.7)`,
+                distal: `rgba(${56 + lowerIndex * 25}, ${142 + lowerIndex * 15}, ${60 + lowerIndex * 20}, 0.7)`
+              };
 
-          // Add lower zone proximal line
-          if (lowerZone.proximal_line) {
-            candlestickSeriesRef.current.createPriceLine({
-              price: lowerZone.proximal_line,
-              color: lowerColorSet.proximal,
-              lineWidth: 1,
-              lineStyle: 2, // Dotted line
-              axisLabelVisible: false,
-              title: `LTF ${lowerZone.pattern || 'Zone'} P (${lowerZone.proximal_line.toFixed(2)})`,
-            });
-          }
+              // Add lower zone proximal line
+              if (lowerZone.proximal_line && typeof lowerZone.proximal_line === 'number') {
+                candlestickSeriesRef.current.createPriceLine({
+                  price: lowerZone.proximal_line,
+                  color: lowerColorSet.proximal,
+                  lineWidth: 1,
+                  lineStyle: 2, // Dotted line
+                  axisLabelVisible: false,
+                  title: `LTF ${lowerZone.pattern || 'Zone'} P (${lowerZone.proximal_line.toFixed(2)})`,
+                });
+              }
 
-          // Add lower zone distal line
-          if (lowerZone.distal_line) {
-            candlestickSeriesRef.current.createPriceLine({
-              price: lowerZone.distal_line,
-              color: lowerColorSet.distal,
-              lineWidth: 1,
-              lineStyle: 3, // Sparse dotted line
-              axisLabelVisible: false,
-              title: `LTF ${lowerZone.pattern || 'Zone'} D (${lowerZone.distal_line.toFixed(2)})`,
-            });
-          }
-        });
+              // Add lower zone distal line
+              if (lowerZone.distal_line && typeof lowerZone.distal_line === 'number') {
+                candlestickSeriesRef.current.createPriceLine({
+                  price: lowerZone.distal_line,
+                  color: lowerColorSet.distal,
+                  lineWidth: 1,
+                  lineStyle: 3, // Sparse dotted line
+                  axisLabelVisible: false,
+                  title: `LTF ${lowerZone.pattern || 'Zone'} D (${lowerZone.distal_line.toFixed(2)})`,
+                });
+              }
+            } catch (lowerZoneError) {
+              console.warn('Error adding lower zone line:', lowerZoneError);
+            }
+          });
+        }
+      } catch (zoneError) {
+        console.warn('Error adding zone lines for zone:', zone, zoneError);
       }
     });
   };
@@ -298,29 +317,37 @@ const ZoneChart = ({
         )}
       </div>
 
-      {/* Loading State */}
-      {isLoading && (
-        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
-          <div className="flex items-center gap-3">
-            <svg className="animate-spin h-6 w-6 text-indigo-600" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
-            </svg>
-            <span className="text-gray-700 font-medium">Loading chart data...</span>
-          </div>
-        </div>
-      )}
-
-      {/* Error State */}
-      {error && (
-        <div className="p-4 bg-red-50/80 backdrop-blur-sm border border-red-200">
-          <p className="text-red-700 font-medium">Error loading chart:</p>
-          <p className="text-red-600 text-sm">{error}</p>
-        </div>
-      )}
-
-      {/* Chart Container */}
+      {/* Chart Container with Loading/Error Overlay */}
       <div className="relative">
+        {/* Loading State */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
+            <div className="flex items-center gap-3">
+              <svg className="animate-spin h-6 w-6 text-indigo-600" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
+              </svg>
+              <span className="text-gray-700 font-medium">Loading chart data...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !isLoading && (
+          <div className="absolute inset-0 bg-red-50/80 backdrop-blur-sm flex items-center justify-center z-10">
+            <div className="text-center p-6">
+              <p className="text-red-700 font-medium mb-2">Error loading chart:</p>
+              <p className="text-red-600 text-sm">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
         <div ref={chartContainerRef} className="w-full" style={{ height: `${height}px` }} />
       </div>
 
