@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import StockChart from './chart/StockChart'
+import TradingChart from './chart/TradingChart'
 
 const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones = [] }) => {
   const [higherInterval, setHigherInterval] = useState('1wk')
@@ -190,11 +190,12 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
               Higher Timeframe ({higherInterval.toUpperCase()})
             </h3>
           </div>
-          <StockChart 
+          <TradingChart 
             ticker={normalizedTicker}
             interval={higherInterval}
             zones={higherZones}
             chartId={`higher-tf-${normalizedTicker}-${higherInterval}`}
+            height={400}
           />
         </div>
 
@@ -206,11 +207,12 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
               Lower Timeframe ({lowerInterval.toUpperCase()})
             </h3>
           </div>
-          <StockChart 
+          <TradingChart 
             ticker={normalizedTicker}
             interval={lowerInterval}
             zones={lowerZones}
             chartId={`lower-tf-${normalizedTicker}-${lowerInterval}`}
+            height={400}
           />
         </div>
       </div>

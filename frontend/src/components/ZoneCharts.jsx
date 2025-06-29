@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import StockChart from './chart/StockChart'
+import TradingChart from './chart/TradingChart'
 import axios from 'axios'
 
 const ZoneCharts = () => {
@@ -200,10 +200,12 @@ const ZoneCharts = () => {
       </div>
 
       {/* Chart */}
-      <StockChart 
+      <TradingChart 
         ticker={ticker} 
         interval={interval} 
         zones={zones}
+        chartId={`zone-chart-${ticker}-${interval}`}
+        height={600}
       />
 
       {/* Zone Details Table */}
