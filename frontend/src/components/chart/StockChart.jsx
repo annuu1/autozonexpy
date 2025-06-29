@@ -32,54 +32,37 @@ const StockChart = ({ ticker = "ABB", interval = '1d', zones = [], chartId = "de
     } : null
   });
 
-  // Check container mounting with a more reliable approach
+  // Use a more direct approach to check when the container is ready
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 30;
-    let timeoutId;
-
+    // Use requestAnimationFrame to ensure DOM is fully rendered
     const checkContainer = () => {
-      console.log(`🔍 Checking container (attempt ${retryCount + 1}/${maxRetries})`);
+      console.log('🔍 Checking container availability...');
       
-      if (!containerRef.current) {
-        console.log('📦 Container ref not available yet');
-        if (retryCount < maxRetries) {
-          retryCount++;
-          timeoutId = setTimeout(checkContainer, 100);
+      if (containerRef.current) {
+        const width = containerRef.current.offsetWidth || containerRef.current.clientWidth;
+        const height = containerRef.current.offsetHeight || containerRef.current.clientHeight;
+        
+        console.log('📏 Container found with dimensions:', { width, height });
+        
+        if (width > 0) {
+          console.log('✅ Container is ready!');
+          setIsMounted(true);
         } else {
-          console.error('❌ Container ref never became available after', maxRetries, 'attempts');
-          setError('Chart container failed to mount');
+          console.log('⏳ Container has no width, forcing mount...');
+          // Force mount even if width is 0 - the chart library can handle it
+          setIsMounted(true);
         }
-        return;
-      }
-
-      // Check if container has dimensions
-      const width = containerRef.current.offsetWidth || containerRef.current.clientWidth;
-      const height = containerRef.current.offsetHeight || containerRef.current.clientHeight;
-      
-      console.log('📏 Container dimensions:', { width, height });
-
-      if (width > 0) {
-        console.log('✅ Container is ready with dimensions:', { width, height });
-        setIsMounted(true);
-      } else if (retryCount < maxRetries) {
-        retryCount++;
-        console.log(`⏳ Container has no width yet, retrying...`);
-        timeoutId = setTimeout(checkContainer, 100);
       } else {
-        console.log('🔧 Force mounting with default dimensions');
-        setIsMounted(true); // Force mount even without proper dimensions
+        console.log('❌ Container ref is null, retrying...');
+        // Retry after a short delay
+        setTimeout(checkContainer, 50);
       }
     };
 
-    // Start checking after a small delay to ensure DOM is ready
-    timeoutId = setTimeout(checkContainer, 50);
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
+    // Check immediately and also after a small delay
+    requestAnimationFrame(() => {
+      setTimeout(checkContainer, 10);
+    });
   }, []);
 
   useEffect(() => {
@@ -116,9 +99,14 @@ const StockChart = ({ ticker = "ABB", interval = '1d', zones = [], chartId = "de
     const normalizedTicker = normalizeTicker(ticker);
     console.log('📊 Normalized ticker:', normalizedTicker);
 
-    // Get container dimensions
-    const containerWidth = containerRef.current.offsetWidth || containerRef.current.clientWidth || 800;
+    // Get container dimensions with fallbacks
+    const containerWidth = containerRef.current.offsetWidth || 
+                          containerRef.current.clientWidth || 
+                          containerRef.current.parentElement?.offsetWidth || 
+                          800;
     const containerHeight = 500; // Fixed height
+
+    console.log('📐 Using container dimensions:', { width: containerWidth, height: containerHeight });
 
     // Create chart instance
     const chartConfig = {
@@ -277,15 +265,27 @@ const StockChart = ({ ticker = "ABB", interval = '1d', zones = [], chartId = "de
         </p>
       </div>
       
+      {/* CRITICAL: This div MUST have the ref attached */}
       <div 
-        ref={containerRef} 
+        ref={containerRef}
         className="w-full h-[500px] rounded-lg overflow-hidden bg-gray-50 border border-gray-200"
         style={{ 
           minHeight: '500px', 
           minWidth: '300px',
-          position: 'relative'
+          position: 'relative',
+          display: 'block' // Ensure it's displayed
         }}
-      />
+      >
+        {/* Fallback content while chart loads */}
+        {!chartRef.current && (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="text-center">
+              <div className="animate-pulse w-8 h-8 bg-gray-300 rounded-full mx-auto mb-2"></div>
+              <p className="text-sm">Preparing chart...</p>
+            </div>
+          </div>
+        )}
+      </div>
       
       <ChartLegend zones={zones} chartData={chartData} />
     </div>
