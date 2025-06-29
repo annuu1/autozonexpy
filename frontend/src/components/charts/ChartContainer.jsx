@@ -90,55 +90,89 @@ const ChartContainer = ({
     }
   }
 
-  // Improved date parsing function
-  const parseDate = (dateString) => {
+  // Enhanced date parsing function to handle all possible formats
+  const parseDate = (dateInput) => {
+    if (!dateInput) {
+      console.warn('Empty date input:', dateInput)
+      return null
+    }
+
     try {
-      // Handle different date formats
       let date
-      
-      if (typeof dateString === 'string') {
-        // Try parsing as ISO string first
-        date = new Date(dateString)
+
+      // Handle different input types
+      if (typeof dateInput === 'number') {
+        // Handle timestamp (both milliseconds and seconds)
+        if (dateInput > 1e12) {
+          // Milliseconds timestamp
+          date = new Date(dateInput)
+        } else {
+          // Seconds timestamp
+          date = new Date(dateInput * 1000)
+        }
+      } else if (typeof dateInput === 'string') {
+        // Handle string dates
+        const trimmedInput = dateInput.trim()
         
-        // If invalid, try other common formats
+        // Try direct parsing first (handles ISO strings like '2025-06-25T04:45:00.000Z')
+        date = new Date(trimmedInput)
+        
+        // If that fails, try parsing as timestamp
         if (isNaN(date.getTime())) {
-          // Try parsing as timestamp
-          const timestamp = parseInt(dateString)
+          const timestamp = parseFloat(trimmedInput)
           if (!isNaN(timestamp)) {
-            date = new Date(timestamp)
+            if (timestamp > 1e12) {
+              date = new Date(timestamp)
+            } else {
+              date = new Date(timestamp * 1000)
+            }
           }
         }
-      } else if (typeof dateString === 'number') {
-        // Handle timestamp
-        date = new Date(dateString)
+        
+        // If still invalid, try other common formats
+        if (isNaN(date.getTime())) {
+          // Try YYYY-MM-DD format
+          const dateMatch = trimmedInput.match(/^(\d{4})-(\d{2})-(\d{2})/)
+          if (dateMatch) {
+            date = new Date(dateMatch[0])
+          }
+        }
+      } else if (dateInput instanceof Date) {
+        date = dateInput
       } else {
-        date = new Date(dateString)
+        // Try to convert to string and parse
+        date = new Date(String(dateInput))
       }
-      
-      // Validate the date
-      if (isNaN(date.getTime())) {
-        console.warn('Invalid date:', dateString)
+
+      // Final validation
+      if (!date || isNaN(date.getTime())) {
+        console.warn('Could not parse date:', dateInput, 'Type:', typeof dateInput)
         return null
       }
-      
+
       return date
     } catch (error) {
-      console.warn('Error parsing date:', dateString, error)
+      console.warn('Error parsing date:', dateInput, error)
       return null
     }
   }
 
   // Format date for chart (lightweight-charts expects YYYY-MM-DD or timestamp)
-  const formatDateForChart = (dateString, intervalValue) => {
-    const date = parseDate(dateString)
+  const formatDateForChart = (dateInput, intervalValue) => {
+    const date = parseDate(dateInput)
     if (!date) return null
     
-    // For intraday intervals, use timestamp
-    if (['1h', '30m', '15m', '5m'].includes(intervalValue)) {
-      return Math.floor(date.getTime() / 1000) // Unix timestamp in seconds
-    } else {
-      // For daily and above, use YYYY-MM-DD format
-      return date.toISOString().split('T')[0]
+    try {
+      // For intraday intervals, use timestamp
+      if (['1h', '30m', '15m', '5m'].includes(intervalValue)) {
+        return Math.floor(date.getTime() / 1000) // Unix timestamp in seconds
+      } else {
+        // For daily and above, use YYYY-MM-DD format
+        return date.toISOString().split('T')[0]
+      }
+    } catch (error) {
+      console.warn('Error formatting date for chart:', dateInput, error)
+      return null
     }
   }
 
@@ -265,34 +299,66 @@ const ChartContainer = ({
         return
       }
 
-      console.log('Raw candles data:', candles.slice(0, 3)) // Log first 3 items for debugging
+      console.log('Raw candles data sample:', candles.slice(0, 3)) // Log first 3 items for debugging
 
-      const processedCandles = candles.map((item, index) => {
+      const processedCandles = []
+      let validCount = 0
+      let invalidCount = 0
+
+      candles.forEach((item, index) => {
         try {
-          const time = formatDateForChart(item.Date, currentInterval)
-          const open = parseFloat(item.Open)
-          const high = parseFloat(item.High)
-          const low = parseFloat(item.Low)
-          const close = parseFloat(item.Close)
+          // Handle different possible date field names
+          const dateField = item.Date || item.Datetime || item.date || item.datetime || item.timestamp
+          
+          if (!dateField) {
+            console.warn(`No date field found in candle at index ${index}:`, Object.keys(item))
+            invalidCount++
+            return
+          }
+
+          const time = formatDateForChart(dateField, currentInterval)
+          const open = parseFloat(item.Open || item.open || 0)
+          const high = parseFloat(item.High || item.high || 0)
+          const low = parseFloat(item.Low || item.low || 0)
+          const close = parseFloat(item.Close || item.close || 0)
 
           // Validate all values
           if (time === null || isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) {
-            console.warn(`Invalid candle data at index ${index}:`, item)
-            return null
+            console.warn(`Invalid candle data at index ${index}:`, {
+              dateField,
+              time,
+              open,
+              high,
+              low,
+              close,
+              originalItem: item
+            })
+            invalidCount++
+            return
           }
 
-          return {
+          // Additional validation: ensure high >= low and high >= open, close
+          if (high < low || high < Math.max(open, close) || low > Math.min(open, close)) {
+            console.warn(`Invalid OHLC values at index ${index}:`, { open, high, low, close })
+            invalidCount++
+            return
+          }
+
+          processedCandles.push({
             time,
             open,
             high,
             low,
             close,
-          }
+          })
+          validCount++
         } catch (error) {
           console.warn(`Error processing candle at index ${index}:`, item, error)
-          return null
+          invalidCount++
         }
-      }).filter(item => item !== null)
+      })
+
+      console.log(`Processed ${validCount} valid candles, ${invalidCount} invalid candles`)
 
       if (processedCandles.length === 0) {
         if (!isLoadMore) {
@@ -301,7 +367,7 @@ const ChartContainer = ({
         return
       }
 
-      console.log('Processed candles:', processedCandles.slice(0, 3)) // Log first 3 processed items
+      console.log('Sample processed candles:', processedCandles.slice(0, 3))
 
       let newChartData
       if (isLoadMore && chartData.length > 0) {
