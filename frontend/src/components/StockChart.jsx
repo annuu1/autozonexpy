@@ -11,9 +11,26 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
   const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
-    console.log('Chart component mounted with ticker:', ticker, 'chartId:', chartId);
+    console.log('StockChart useEffect triggered:', { ticker, interval, chartId, zones: zones?.length });
 
-    if (!chartContainerRef.current) return;
+    if (!chartContainerRef.current) {
+      console.log('Chart container not ready yet');
+      return;
+    }
+
+    if (!ticker) {
+      console.log('No ticker provided');
+      setError('No ticker provided');
+      setIsLoading(false);
+      return;
+    }
+
+    // Normalize ticker to ensure .NS suffix
+    const normalizedTicker = ticker.toUpperCase().endsWith('.NS') 
+      ? ticker.toUpperCase() 
+      : `${ticker.toUpperCase()}.NS`;
+
+    console.log('Normalized ticker:', normalizedTicker);
 
     // Create chart instance
     const chart = createChart(chartContainerRef.current, {
@@ -67,45 +84,60 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
         setIsLoading(true);
         setError(null);
         
-        const startDate = "2024-01-01";
+        // Set date range - 2 years of data
         const endDate = new Date().toISOString().split('T')[0];
+        const startDate = new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         
-        console.log(`Fetching OHLC data for ${ticker} with interval ${interval}`);
-        const ohlcData = await getOhlcData(ticker, interval, startDate, endDate);
-        console.log('Raw backend OHLC data for', chartId, ':', ohlcData);
+        console.log(`Making API call for ${normalizedTicker} with interval ${interval} from ${startDate} to ${endDate}`);
+        
+        const ohlcData = await getOhlcData(normalizedTicker, interval, startDate, endDate);
+        console.log('Raw OHLC data received:', ohlcData?.length, 'records');
         
         if (!Array.isArray(ohlcData) || ohlcData.length === 0) {
-          throw new Error('No OHLC data returned from backend');
+          throw new Error(`No OHLC data returned for ${normalizedTicker}`);
         }
 
         // Process the data to match lightweight-charts format
-        const processedData = ohlcData.map((data) => {
-          // Convert date string to timestamp
-          let time;
-          if (typeof data.Date === 'string') {
-            // Parse the ISO date string and convert to YYYY-MM-DD format
-            const date = new Date(data.Date);
-            time = date.toISOString().slice(0, 10); // 'YYYY-MM-DD'
-          } else {
-            console.warn('Invalid date format:', data.Date);
+        const processedData = ohlcData.map((data, index) => {
+          try {
+            // Handle different date formats
+            let time;
+            if (typeof data.Date === 'string') {
+              // Parse the ISO date string and convert to YYYY-MM-DD format
+              const date = new Date(data.Date);
+              if (isNaN(date.getTime())) {
+                console.warn(`Invalid date at index ${index}:`, data.Date);
+                return null;
+              }
+              time = date.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+            } else {
+              console.warn(`Invalid date format at index ${index}:`, data.Date);
+              return null;
+            }
+
+            // Ensure all price values are valid numbers
+            const open = parseFloat(data.Open);
+            const high = parseFloat(data.High);
+            const low = parseFloat(data.Low);
+            const close = parseFloat(data.Close);
+
+            if (isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) {
+              console.warn(`Invalid price data at index ${index}:`, data);
+              return null;
+            }
+
+            return {
+              time,
+              open,
+              high,
+              low,
+              close,
+            };
+          } catch (error) {
+            console.warn(`Error processing data at index ${index}:`, error, data);
             return null;
           }
-
-          return {
-            time,
-            open: parseFloat(data.Open),
-            high: parseFloat(data.High),
-            low: parseFloat(data.Low),
-            close: parseFloat(data.Close),
-          };
-        }).filter(d => 
-          d !== null &&
-          d.time && 
-          !isNaN(d.open) && 
-          !isNaN(d.high) && 
-          !isNaN(d.low) && 
-          !isNaN(d.close)
-        );
+        }).filter(d => d !== null);
 
         if (processedData.length === 0) {
           throw new Error('No valid chart data after processing');
@@ -114,7 +146,8 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
         // Sort data by time to ensure proper order
         processedData.sort((a, b) => new Date(a.time) - new Date(b.time));
 
-        console.log('Processed chart data for', chartId, ':', processedData.slice(0, 5), '... (showing first 5)');
+        console.log(`Processed ${processedData.length} valid data points for ${chartId}`);
+        console.log('Sample processed data:', processedData.slice(0, 3));
         
         // Set the candlestick data
         candlestickSeries.setData(processedData);
@@ -122,46 +155,52 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
 
         // Add zone lines if zones are provided
         if (zones && zones.length > 0) {
-          console.log('Adding zone lines for', zones.length, 'zones');
+          console.log(`Adding ${zones.length} zone lines for ${chartId}`);
           zones.forEach((zone, index) => {
-            const baseColor = zone.pattern === 'RBR' ? '#26a69a' : '#ef5350';
-            const freshnessAlpha = zone.freshness === 3 ? '1' : zone.freshness === 1.5 ? '0.7' : '0.4';
-            
-            // Add proximal line (solid)
-            const proximalLine = candlestickSeries.createPriceLine({
-              price: zone.proximal_line,
-              color: baseColor,
-              lineWidth: 2,
-              lineStyle: 0, // solid
-              axisLabelVisible: true,
-              title: `${zone.pattern} Proximal (F:${zone.freshness})`,
-            });
+            try {
+              const baseColor = zone.pattern === 'RBR' ? '#26a69a' : '#ef5350';
+              
+              // Add proximal line (solid)
+              const proximalLine = candlestickSeries.createPriceLine({
+                price: parseFloat(zone.proximal_line),
+                color: baseColor,
+                lineWidth: 2,
+                lineStyle: 0, // solid
+                axisLabelVisible: true,
+                title: `${zone.pattern} Proximal (F:${zone.freshness})`,
+              });
 
-            // Add distal line (dashed)
-            const distalLine = candlestickSeries.createPriceLine({
-              price: zone.distal_line,
-              color: baseColor,
-              lineWidth: 1,
-              lineStyle: 1, // dashed
-              axisLabelVisible: true,
-              title: `${zone.pattern} Distal`,
-            });
+              // Add distal line (dashed)
+              const distalLine = candlestickSeries.createPriceLine({
+                price: parseFloat(zone.distal_line),
+                color: baseColor,
+                lineWidth: 1,
+                lineStyle: 1, // dashed
+                axisLabelVisible: true,
+                title: `${zone.pattern} Distal`,
+              });
 
-            console.log(`Added zone lines for ${zone.pattern}: Proximal=${zone.proximal_line}, Distal=${zone.distal_line}`);
+              console.log(`Added zone ${index + 1}: ${zone.pattern} P:${zone.proximal_line} D:${zone.distal_line}`);
+            } catch (error) {
+              console.error(`Error adding zone ${index}:`, error, zone);
+            }
           });
         }
 
         // Fit content to show all data
         chart.timeScale().fitContent();
         
+        console.log(`Chart ${chartId} setup complete with ${processedData.length} data points and ${zones?.length || 0} zones`);
+        
       } catch (error) {
-        console.error('Error fetching OHLC data for', chartId, ':', error);
-        setError(error.message);
+        console.error(`Error in fetchAndSetData for ${chartId}:`, error);
+        setError(error.message || 'Failed to load chart data');
       } finally {
         setIsLoading(false);
       }
     };
 
+    // Start fetching data
     fetchAndSetData();
 
     // Resize handler
@@ -177,7 +216,7 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
 
     // Cleanup on unmount
     return () => {
-      console.log('Cleaning up chart', chartId);
+      console.log(`Cleaning up chart ${chartId}`);
       window.removeEventListener('resize', handleResize);
       if (chart) {
         chart.remove();
@@ -192,6 +231,7 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading chart data for {ticker}...</p>
           <p className="text-sm text-gray-500 mt-1">Interval: {interval}</p>
+          <p className="text-xs text-gray-400 mt-1">Chart ID: {chartId}</p>
         </div>
       </div>
     );
@@ -202,8 +242,18 @@ const StockChart = ({ ticker = "ABB", interval = '1d', selectedZone = null, zone
       <div className="relative w-full h-[500px] bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 flex items-center justify-center">
         <div className="text-center text-red-600">
           <p className="text-lg font-semibold mb-2">Error loading chart</p>
-          <p className="text-sm">{error}</p>
-          <p className="text-xs text-gray-500 mt-2">Ticker: {ticker} | Interval: {interval}</p>
+          <p className="text-sm mb-2">{error}</p>
+          <div className="text-xs text-gray-500 space-y-1">
+            <p>Ticker: {ticker}</p>
+            <p>Interval: {interval}</p>
+            <p>Chart ID: {chartId}</p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
