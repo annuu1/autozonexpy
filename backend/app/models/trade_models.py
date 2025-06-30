@@ -22,6 +22,7 @@ class TradeCreate(BaseModel):
     created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
     alert_sent: Optional[bool] = False
     entry_alert_sent: Optional[bool] = False
+    verified: Optional[bool] = False
     note: Optional[str] = None
 
     @validator("stop_loss")

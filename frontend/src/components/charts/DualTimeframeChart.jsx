@@ -57,16 +57,16 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
 
   const trades = () => [
   {
-    entry_price: higherTimeframeZone.proximal_line,
-    sl: higherTimeframeZone.distal_line,
+    entry_price: parseFloat(higherTimeframeZone.proximal_line).toFixed(2),
+    sl: parseFloat(higherTimeframeZone.distal_line).toFixed(2),
     target:
-      higherTimeframeZone.proximal_line +
-      (higherTimeframeZone.proximal_line - higherTimeframeZone.distal_line) * 2,
+      parseFloat(higherTimeframeZone.proximal_line +
+      (higherTimeframeZone.proximal_line - higherTimeframeZone.distal_line) * 2).toFixed(2),
   },
   ...lowerTimeframeZones.map((zone) => ({
-    entry_price: zone.proximal_line,
-    sl: zone.distal_line,
-    target: zone.proximal_line + (zone.proximal_line - zone.distal_line) * 2,
+    entry_price: parseFloat(zone.proximal_line).toFixed(2),
+    sl: parseFloat(zone.distal_line).toFixed(2),
+    target: parseFloat(zone.proximal_line).toFixed(2) + (parseFloat(zone.proximal_line).toFixed(2) - parseFloat(zone.distal_line).toFixed(2)) * 2,
   })),
 ];
 
