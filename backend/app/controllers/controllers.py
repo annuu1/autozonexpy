@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from datetime import datetime, timedelta
 from app.models.models import StockRequest, DemandZone, MultiStockRequest
 from app.services.services import fetch_stock_data, identify_demand_zones, identify_ltf_zones
-from app.services.zone_service import get_zones_by_ticker, save_unique_zones
+from app.services.zone_service import get_all_zones, get_zones_by_ticker, save_unique_zones
 from typing import List, Dict
 from dateutil import parser
 import json
@@ -200,4 +200,13 @@ async def get_demand_zones_controller(request: GetZonesRequest) -> Dict[str, Lis
         return zones_by_ticker
     except Exception as e:
         logger.error(f"Error retrieving demand zones: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+#controller to get the all zones
+async def get_all_zones_controller() -> List[Dict]:
+    try:
+        zones = await get_all_zones()
+        return zones
+    except Exception as e:
+        logger.error(f"Error retrieving all zones: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

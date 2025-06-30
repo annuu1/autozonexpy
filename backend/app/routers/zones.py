@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Optional
 from pydantic import BaseModel
-from app.controllers.controllers import get_demand_zones_controller
+from app.controllers.controllers import get_all_zones_controller, get_demand_zones_controller
 from app.models.models import GetZonesRequest
 
 router = APIRouter(prefix="/zones", tags=["zones"])
@@ -19,6 +19,15 @@ async def get_demand_zones(request: GetZonesRequest):
     """
     try:
         return await get_demand_zones_controller(request)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+@router.get("/all-zones")
+async def get_all_zones():
+    try:
+        return await get_all_zones_controller()
     except HTTPException as e:
         raise e
     except Exception as e:

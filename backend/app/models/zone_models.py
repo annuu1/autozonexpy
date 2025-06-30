@@ -10,10 +10,10 @@ class PyObjectId(ObjectId):
         yield cls.validate
 
     @classmethod
-    def validate(cls, v):
+    def validate(cls, v, *args, **kwargs):
         if not ObjectId.is_valid(v):
             raise ValueError("Invalid ObjectId")
-        return ObjectId(v)
+        return str(v)  # Ensure output is always a string
 
 class LowerZone(BaseModel):
     zone_id: str

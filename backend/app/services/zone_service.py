@@ -106,3 +106,17 @@ async def get_zones_by_ticker(tickers: Optional[List[str]] = None, start_date: O
     except Exception as e:
         logger.error(f"Error in get_zones_by_ticker: {str(e)}")
         raise
+
+#get all the zones list
+from app.models.zone_models import DemandZone
+
+async def get_all_zones(db_collection: AsyncIOMotorCollection = collection) -> List[Dict]:
+    try:
+        zones = await db_collection.find().to_list(length=None)
+        logger.info(f"Retrieved {len(zones)} zones from database")
+        # Serialize using the Pydantic model, ensuring ObjectId is converted to str
+        return [DemandZone(**zone).model_dump(by_alias=True) for zone in zones]
+    except Exception as e:
+        logger.error(f"Error in get_all_zones: {str(e)}")
+        raise
+    
