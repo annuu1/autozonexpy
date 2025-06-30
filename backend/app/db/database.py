@@ -12,7 +12,10 @@ COLLECTION_NAME = "demand_zones"
 
 client = AsyncIOMotorClient(MONGODB_URL)
 db = client[DATABASE_NAME]
+
+#collections
 collection = db[COLLECTION_NAME]
+trade_collection = db['trades']
 
 async def init_db():
     """Initialize MongoDB with a unique index on zone_id"""
