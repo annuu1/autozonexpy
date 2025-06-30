@@ -9,18 +9,18 @@ class StockRequest(BaseModel):
     end_date: Optional[date] = None
     higher_interval: str = "1d"
     lower_interval: str = "1h"
-    leginMinBodyPercent: int = 50
-    ltf_leginMinBodyPercent: int = 50
-    legoutMinBodyPercent: int = 50
-    ltf_legoutMinBodyPercent: int = 50
-    baseMaxBodyPercent: int = 50
-    ltf_baseMaxBodyPercent: int = 50
-    minLegoutMovement: int = 7
-    ltf_minLegoutMovement: int = 3
-    minLeginMovement: int = 7
-    ltf_minLeginMovement: int = 3
-    minBaseCandles: int = 1
-    maxBaseCandles: int = 5
+    leginMinBodyPercent: float = 50
+    ltf_leginMinBodyPercent: float = 50
+    legoutMinBodyPercent: float = 50
+    ltf_legoutMinBodyPercent: float = 50
+    baseMaxBodyPercent: float = 50
+    ltf_baseMaxBodyPercent: float = 50
+    minLegoutMovement: float = 7
+    ltf_minLegoutMovement: float = 3
+    minLeginMovement: float = 7
+    ltf_minLeginMovement: float = 3
+    minBaseCandles: float = 1
+    maxBaseCandles: float = 5
     detectLowerZones: Optional[bool] = True
 
 class DemandZone(BaseModel):
@@ -31,7 +31,7 @@ class DemandZone(BaseModel):
     pattern: str
     timestamp: str
     end_timestamp: str
-    base_candles: int
+    base_candles: float
     freshness: float
     parent_zone_id: Optional[str] = None
     coinciding_lower_zones: List[Dict] = []
@@ -42,16 +42,16 @@ class MultiStockRequest(BaseModel):
     end_date: Optional[date] = None
     higher_interval: str = "1d"
     lower_interval: str = "1h"
-    leginMinBodyPercent: int = 50
-    ltf_leginMinBodyPercent: int = 50
-    legoutMinBodyPercent: int = 50
-    ltf_legoutMinBodyPercent: int = 50
-    baseMaxBodyPercent: int = 50
-    ltf_baseMaxBodyPercent: int = 50
-    minLegoutMovement: int = 7
-    ltf_minLegoutMovement: int = 3
-    minLeginMovement: int = 7
-    ltf_minLeginMovement: int = 3
-    minBaseCandles: int = 1
-    maxBaseCandles: int = 5
+    leginMinBodyPercent: float = 50
+    ltf_leginMinBodyPercent: float = 50
+    legoutMinBodyPercent: float = 50
+    ltf_legoutMinBodyPercent: float = 50
+    baseMaxBodyPercent: float = 50
+    ltf_baseMaxBodyPercent: float = 50
+    minLegoutMovement: float = 7
+    ltf_minLegoutMovement: float = 3
+    minLeginMovement: float = 7
+    ltf_minLeginMovement: float = 3
+    minBaseCandles: float = 1
+    maxBaseCandles: float = 5
     detectLowerZones: Optional[bool] = True

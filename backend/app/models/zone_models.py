@@ -19,12 +19,12 @@ class LowerZone(BaseModel):
     zone_id: str
     proximal_line: float
     distal_line: float
-    trade_score: int
+    trade_score: float
     pattern: str
     start_timestamp: str
     end_timestamp: str
-    base_candles: int
-    freshness: int
+    base_candles: float
+    freshness: float
     timestamp: str
 
     class Config:
@@ -36,12 +36,12 @@ class DemandZone(BaseModel):
     zone_id: str
     proximal_line: float
     distal_line: float
-    trade_score: int
+    trade_score: float
     pattern: str
     timestamp: str
     end_timestamp: str
-    base_candles: int
-    freshness: int
+    base_candles: float
+    freshness: float
     parent_zone_id: Optional[str]=None
     coinciding_lower_zones: List[LowerZone] = []
 
