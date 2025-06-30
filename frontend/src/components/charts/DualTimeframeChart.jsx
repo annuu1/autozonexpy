@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
-import { Settings } from 'lucide-react'
+import { Settings, Bell } from 'lucide-react'
 import ChartContainer from './ChartContainer'
 import ZoneLegend from './ZoneLegend'
 import ZoneDetails from './ZoneDetails'
 import CollapsibleSection from '../ui/CollapsibleSection'
 import Card from '../ui/Card'
+import Button from '../ui/Button'
+import AddTrade from '../modals/AddTrade'
 
 const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones = [] }) => {
   const [higherInterval, setHigherInterval] = useState('1wk')
@@ -25,8 +27,8 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
     { value: '5m', label: '5 Minutes' },
   ]
 
-  const normalizedTicker = ticker?.toUpperCase().endsWith('.NS') 
-    ? ticker.toUpperCase() 
+  const normalizedTicker = ticker?.toUpperCase().endsWith('.NS')
+    ? ticker.toUpperCase()
     : `${ticker?.toUpperCase()}.NS`
 
   const higherZones = higherTimeframeZone ? [higherTimeframeZone] : []
@@ -43,27 +45,53 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
     )
   }
 
+  const [isTradeModalOpen, setIsTradeModalOpen] = useState(false)
+
+  const handleBellClick = () => {
+    setIsTradeModalOpen(true)
+  }
+
+  const handleTradeModalClose = () => {
+    setIsTradeModalOpen(false)
+  }
+
+  const trades = () => [
+  {
+    entry_price: higherTimeframeZone.proximal_line,
+    sl: higherTimeframeZone.distal_line,
+    target:
+      higherTimeframeZone.proximal_line +
+      (higherTimeframeZone.proximal_line - higherTimeframeZone.distal_line) * 2,
+  },
+  ...lowerTimeframeZones.map((zone) => ({
+    entry_price: zone.proximal_line,
+    sl: zone.distal_line,
+    target: zone.proximal_line + (zone.proximal_line - zone.distal_line) * 2,
+  })),
+];
+
   return (
     <div className="space-y-4 h-full">
+      <AddTrade ticker={normalizedTicker.split('.NS')[0]} 
+      trades = {trades()} 
+      isOpen={isTradeModalOpen} onClose={handleTradeModalClose} />
       {/* Zone Summary Header */}
       <Card>
         <Card.Content className="!p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-800">{normalizedTicker}</h3>
+              <h3 style={{display: 'inline'}} className="text-lg font-semibold text-gray-800">{normalizedTicker.split('.NS')[0]} <Bell style={{display: 'inline', cursor: 'pointer', color: 'green'}} size={16} onClick={handleBellClick} /></h3>
               <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                  higherTimeframeZone.pattern === 'RBR' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                }`}>
+                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${higherTimeframeZone.pattern === 'RBR' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}>
                   {higherTimeframeZone.pattern}
                 </span>
                 <span>P: {higherTimeframeZone.proximal_line.toFixed(2)}</span>
                 <span>D: {higherTimeframeZone.distal_line.toFixed(2)}</span>
                 <span>Score: {higherTimeframeZone.trade_score.toFixed(1)}</span>
-                <span className={`font-medium ${
-                  higherTimeframeZone.freshness === 3 ? 'text-green-600' : 
-                  higherTimeframeZone.freshness === 1.5 ? 'text-yellow-600' : 'text-red-600'
-                }`}>
+                <span className={`font-medium ${higherTimeframeZone.freshness === 3 ? 'text-green-600' :
+                    higherTimeframeZone.freshness === 1.5 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
                   F: {higherTimeframeZone.freshness}
                 </span>
                 {lowerZones.length > 0 && (
@@ -99,7 +127,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
                 ))}
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Lower Timeframe:
@@ -117,7 +145,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
               </select>
             </div>
           </div>
-          
+
           {/* Data Range Information */}
           <div className="bg-blue-50/80 backdrop-blur-sm rounded-lg p-3 border border-blue-200">
             <h4 className="text-sm font-semibold text-blue-800 mb-2">Initial Data Ranges:</h4>
@@ -126,21 +154,21 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
                 <span className="font-medium">Higher TF ({higherInterval}):</span>
                 <span className="ml-2">
                   {higherInterval === '1mo' ? '10 years' :
-                   higherInterval === '1wk' ? '5 years' :
-                   higherInterval === '1d' ? '1 year' :
-                   higherInterval === '1h' ? '30 days' : '1 year'}
+                    higherInterval === '1wk' ? '5 years' :
+                      higherInterval === '1d' ? '1 year' :
+                        higherInterval === '1h' ? '30 days' : '1 year'}
                 </span>
               </div>
               <div>
                 <span className="font-medium">Lower TF ({lowerInterval}):</span>
                 <span className="ml-2">
                   {lowerInterval === '1mo' ? '10 years' :
-                   lowerInterval === '1wk' ? '5 years' :
-                   lowerInterval === '1d' ? '1 year' :
-                   lowerInterval === '1h' ? '30 days' :
-                   lowerInterval === '30m' ? '20 days' :
-                   lowerInterval === '15m' ? '15 days' :
-                   lowerInterval === '5m' ? '10 days' : '1 year'}
+                    lowerInterval === '1wk' ? '5 years' :
+                      lowerInterval === '1d' ? '1 year' :
+                        lowerInterval === '1h' ? '30 days' :
+                          lowerInterval === '30m' ? '20 days' :
+                            lowerInterval === '15m' ? '15 days' :
+                              lowerInterval === '5m' ? '10 days' : '1 year'}
                 </span>
               </div>
             </div>
@@ -149,14 +177,15 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
             </p>
           </div>
         </div>
+
+        {/* Zone Legend */}
+        <ZoneLegend zones={[...higherZones, ...lowerZones]} />
       </CollapsibleSection>
 
-      {/* Zone Legend */}
-      <ZoneLegend zones={[...higherZones, ...lowerZones]} />
 
       {/* Dual Charts - Full Height */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 flex-1 min-h-[600px]">
-        <ChartContainer 
+        <ChartContainer
           ticker={normalizedTicker}
           interval={higherInterval}
           zones={higherZones}
@@ -165,7 +194,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
           onIntervalChange={setHigherInterval}
         />
 
-        <ChartContainer 
+        <ChartContainer
           ticker={normalizedTicker}
           interval={lowerInterval}
           zones={lowerZones}
