@@ -25,8 +25,12 @@ async def save_unique_zones(zones_by_ticker: Dict[str, List[DemandZone]], db_col
                         lower_zone if isinstance(lower_zone, LowerZone) else LowerZone(**lower_zone)
                         for lower_zone in getattr(zone, "coinciding_lower_zones", [])
                     ]
+                    zone_ticker = zone.zone_id.split("-")[0]
+                    if zone_ticker != ticker:
+                        logger.warning(f"Mismatch in ticker: {ticker} vs {zone_ticker} in zone_id {zone.zone_id}")
                     demand_zone = DemandZone(
                         zone_id=zone.zone_id,
+                        ticker=zone_ticker, 
                         proximal_line=zone.proximal_line,
                         distal_line=zone.distal_line,
                         trade_score=zone.trade_score,

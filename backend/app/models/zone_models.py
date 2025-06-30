@@ -34,6 +34,7 @@ class LowerZone(BaseModel):
 class DemandZone(BaseModel):
     id: Optional[PyObjectId] = Field(default_factory=ObjectId, alias="_id")
     zone_id: str
+    ticker: str
     proximal_line: float
     distal_line: float
     trade_score: float
