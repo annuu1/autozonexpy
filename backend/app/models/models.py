@@ -3,6 +3,14 @@ from datetime import date, datetime
 from typing import Dict, Optional
 from typing import Optional, List
 
+
+
+class GetZonesRequest(BaseModel):
+    tickers: Optional[List[str]] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
 class StockRequest(BaseModel):
     ticker: str
     start_date: Optional[date] = None

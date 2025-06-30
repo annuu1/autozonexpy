@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from datetime import datetime, timedelta
 from app.models.models import StockRequest, DemandZone, MultiStockRequest
 from app.services.services import fetch_stock_data, identify_demand_zones, identify_ltf_zones
-from app.services.zone_service import save_unique_zones
+from app.services.zone_service import get_zones_by_ticker, save_unique_zones
 from typing import List, Dict
 from dateutil import parser
 import json
@@ -11,6 +11,7 @@ from app.utils.ticker_loader import load_tickers_from_json
 import pandas as pd
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from app.models.models import GetZonesRequest
 
 logger = logging.getLogger(__name__)
 
@@ -176,4 +177,26 @@ async def find_multi_demand_zones_controller(request: MultiStockRequest) -> Dict
 
     except Exception as e:
         logger.error(f"Error processing multi ticker demand zones: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+async def get_demand_zones_controller(request: GetZonesRequest) -> Dict[str, List[Dict]]:
+    """
+    Retrieve demand zones from MongoDB, grouped by ticker.
+    
+    Args:
+        request: GetZonesRequest with optional tickers, start_date, and end_date filters.
+    
+    Returns:
+        Dictionary mapping ticker symbols to lists of DemandZone dictionaries.
+    """
+    try:
+        zones_by_ticker = await get_zones_by_ticker(
+            tickers=request.tickers,
+            start_date=request.start_date,
+            end_date=request.end_date
+        )
+        return zones_by_ticker
+    except Exception as e:
+        logger.error(f"Error retrieving demand zones: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

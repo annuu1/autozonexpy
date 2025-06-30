@@ -2,13 +2,9 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Optional
 from pydantic import BaseModel
 from app.controllers.controllers import get_demand_zones_controller
+from app.models.models import GetZonesRequest
 
 router = APIRouter(prefix="/zones", tags=["zones"])
-
-class GetZonesRequest(BaseModel):
-    tickers: Optional[List[str]] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
 
 @router.post("/demand-zones")
 async def get_demand_zones(request: GetZonesRequest):

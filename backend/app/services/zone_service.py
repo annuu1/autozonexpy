@@ -1,5 +1,6 @@
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
+from dateutil import parser
 from motor.motor_asyncio import AsyncIOMotorCollection
 from app.models.zone_models import DemandZone, LowerZone
 from app.db.database import collection
@@ -48,4 +49,56 @@ async def save_unique_zones(zones_by_ticker: Dict[str, List[DemandZone]], db_col
         logger.info(f"Saved {len(global_unique_zones)} unique zones to database")
     except Exception as e:
         logger.error(f"Error in save_unique_zones: {str(e)}")
+        raise
+
+async def get_zones_by_ticker(tickers: Optional[List[str]] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, db_collection: AsyncIOMotorCollection = collection) -> Dict[str, List[Dict]]:
+    """
+    Retrieve demand zones from MongoDB, grouped by ticker.
+    
+    Args:
+        tickers: Optional list of ticker symbols to filter by.
+        start_date: Optional start date for zone timestamps (ISO format).
+        end_date: Optional end date for zone timestamps (ISO format).
+        db_collection: MongoDB collection to query (defaults to app.db.database.collection).
+    
+    Returns:
+        Dictionary mapping ticker symbols to lists of DemandZone dictionaries.
+    """
+    try:
+        query = {}
+        if tickers:
+            query["zone_id"] = {"$in": [f"{ticker}-" for ticker in tickers]}  # Partial match for zone_id
+        if start_date and end_date:
+            try:
+                start_dt = parser.parse(start_date)
+                end_dt = parser.parse(end_date)
+                query["timestamp"] = {"$gte": start_dt.isoformat(), "$lte": end_dt.isoformat()}
+            except ValueError as e:
+                logger.error(f"Invalid date format: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+
+        zones = await db_collection.find(query).to_list(length=None)
+        logger.info(f"Retrieved {len(zones)} zones from database")
+
+        # Group zones by ticker
+        zones_by_ticker: Dict[str, List[Dict]] = {}
+        for zone in zones:
+            ticker = zone["zone_id"].split("-")[0]  # Extract ticker from zone_id (e.g., ZEEL from ZEEL-1d-...)
+            if ticker not in zones_by_ticker:
+                zones_by_ticker[ticker] = []
+            # Convert to DemandZone and then to dict for consistent output
+            demand_zone = DemandZone(**zone)
+            zones_by_ticker[ticker].append(demand_zone.model_dump(by_alias=False))
+
+        # Ensure empty lists for requested tickers with no zones
+        if tickers:
+            for ticker in tickers:
+                if ticker not in zones_by_ticker:
+                    zones_by_ticker[ticker] = []
+
+        logger.info(f"Grouped zones for {len(zones_by_ticker)} tickers")
+        return zones_by_ticker
+
+    except Exception as e:
+        logger.error(f"Error in get_zones_by_ticker: {str(e)}")
         raise
