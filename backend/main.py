@@ -4,7 +4,8 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 from app.routes import router
 import logging
-
+from app.db.database import init_db
+from app.db.database import collection
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -43,3 +44,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 async def root():
     index_path = Path("static/index.html")
     return FileResponse(index_path)
+
+@app.on_event("startup")
+async def startup_event():
+    await init_db()
+    print("MongoDB initialized with unique index on zone_id")

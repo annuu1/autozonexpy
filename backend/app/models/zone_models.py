@@ -1,0 +1,50 @@
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from datetime import datetime
+from bson import ObjectId
+
+class PyObjectId(ObjectId):
+    """Custom type for MongoDB ObjectId"""
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        if not ObjectId.is_valid(v):
+            raise ValueError("Invalid ObjectId")
+        return ObjectId(v)
+
+class LowerZone(BaseModel):
+    zone_id: str
+    proximal_line: float
+    distal_line: float
+    trade_score: int
+    pattern: str
+    start_timestamp: str
+    end_timestamp: str
+    base_candles: int
+    freshness: int
+    timestamp: str
+
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class DemandZone(BaseModel):
+    id: Optional[PyObjectId] = Field(default_factory=ObjectId, alias="_id")
+    zone_id: str
+    proximal_line: float
+    distal_line: float
+    trade_score: int
+    pattern: str
+    timestamp: str
+    end_timestamp: str
+    base_candles: int
+    freshness: int
+    parent_zone_id: Optional[str]=None
+    coinciding_lower_zones: List[LowerZone] = []
+
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}

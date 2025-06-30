@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from datetime import datetime, timedelta
 from app.models.models import StockRequest, DemandZone, MultiStockRequest
 from app.services.services import fetch_stock_data, identify_demand_zones, identify_ltf_zones
+from app.services.zone_service import save_unique_zones
 from typing import List, Dict
 from dateutil import parser
 import json
@@ -168,6 +169,8 @@ async def find_multi_demand_zones_controller(request: MultiStockRequest) -> Dict
                     if not isinstance(result, Exception):
                         all_results[ticker] = result
 
+        # Save unique zones to MongoDB using the service
+        await save_unique_zones(all_results)
         logger.info(f"Completed processing for {len(all_results)} tickers")
         return all_results
 
