@@ -18,13 +18,15 @@ async def create_trade(trade: TradeCreate):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
-# Get all trades with pagination and sorting
+# Get all trades with pagination, sorting, and search
 @router.get("/")
 async def get_trades(
     page: int = Query(1, ge=1, description="Page number, starting from 1"),
     limit: int = Query(10, ge=1, le=100, description="Number of trades per page"),
     sort_by: Optional[str] = Query("created_at", description="Field to sort by"),
-    sort_order: Optional[str] = Query("desc", regex="^(asc|desc)$", description="Sort order (asc or desc)")
+    sort_order: Optional[str] = Query("desc", regex="^(asc|desc)$", description="Sort order (asc or desc)"),
+    symbol: Optional[str] = Query("", description="Search by symbol (partial match)"),
+    status: Optional[str] = Query("", regex="^(OPEN|CLOSED|)$", description="Filter by status (OPEN or CLOSED)")
 ):
     try:
         # Validate sort_by field
@@ -39,19 +41,26 @@ async def get_trades(
                 detail=f"Invalid sort field. Must be one of: {', '.join(valid_sort_fields)}"
             )
 
+        # Build MongoDB query
+        query = {}
+        if symbol:
+            query["symbol"] = {"$regex": symbol, "$options": "i"}  # Case-insensitive partial match
+        if status:
+            query["status"] = status  # Exact match
+
         # Prepare MongoDB query
         skip = (page - 1) * limit
         sort_direction = 1 if sort_order == "asc" else -1
 
-        # Fetch trades with pagination and sorting
-        trades_cursor = trade_collection.find().sort(sort_by, sort_direction).skip(skip).limit(limit)
+        # Fetch trades with pagination, sorting, and filtering
+        trades_cursor = trade_collection.find(query).sort(sort_by, sort_direction).skip(skip).limit(limit)
         trades = []
         async for trade in trades_cursor:
             trade["_id"] = str(trade["_id"])  # Convert ObjectId to string
             trades.append(trade)
 
         # Get total count for pagination
-        total_count = await trade_collection.count_documents({})
+        total_count = await trade_collection.count_documents(query)
 
         # Calculate total pages
         total_pages = (total_count + limit - 1) // limit  # Ceiling division

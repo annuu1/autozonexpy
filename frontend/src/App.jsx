@@ -10,6 +10,7 @@ import ZoneCharts from "./components/ZoneCharts.jsx";
 import ZoneChartsTable from "./components/ZoneChartsTable.jsx";
 import ZoneChart from "./components/charts/ZoneChart.jsx";
 import TradesTable from "./components/tables/TradesTable.jsx";
+import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
   const [zones, setZones] = useState([]);

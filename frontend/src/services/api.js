@@ -60,12 +60,24 @@ export const addTrade = async (symbol, entry_price, sl, target, trade_type, note
     }
 }
 
-//get all trades
-export const getTrades = async (page = 1, limit = 10, sortBy = 'created_at', sortOrder = 'desc') => {
+export const createTrade = async (tradeData) => {
     try {
-      console.log(`Fetching trades for page ${page}, limit ${limit}, sortBy ${sortBy}, sortOrder ${sortOrder}`);
+      console.log('Creating new trade:', tradeData);
+      const response = await axios.post(`${BASE_URL}/trades`, tradeData);
+      const createdTrade = await axios.get(`${BASE_URL}/trades/${response.data.trade_id}`);
+      return createdTrade.data.trade;
+    } catch (error) {
+      console.error('Error creating trade:', error);
+      throw new Error(error.response?.data?.detail || 'Failed to create trade');
+    }
+  };
+  
+//get all trades
+export const getTrades = async (page = 1, limit = 10, sortBy = 'created_at', sortOrder = 'desc', symbol = '', status = '') => {
+    try {
+      console.log(`Fetching trades for page ${page}, limit ${limit}, sortBy ${sortBy}, sortOrder ${sortOrder}, symbol ${symbol}, status ${status}`);
       const response = await axios.get(`${BASE_URL}/trades`, {
-        params: { page, limit, sort_by: sortBy, sort_order: sortOrder },
+        params: { page, limit, sort_by: sortBy, sort_order: sortOrder, symbol, status },
       });
       return {
         trades: response.data.trades || [],
