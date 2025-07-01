@@ -99,6 +99,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
                 )}
               </div>
             </div>
+            <Button onClick={handleBellClick}>Add Trade</Button>
           </div>
         </Card.Content>
       </Card>
