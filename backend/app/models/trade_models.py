@@ -3,6 +3,9 @@ from typing import Optional
 from enum import Enum
 from datetime import datetime
 
+class VerifyTrade(BaseModel):
+    verified: bool
+
 class TradeType(str, Enum):
     BUY = "BUY"
     SELL = "SELL"

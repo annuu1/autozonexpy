@@ -77,3 +77,36 @@ export const getTrades = async (page = 1, limit = 10, sortBy = 'created_at', sor
       throw new Error(error.response?.data?.detail || 'Failed to fetch trades');
     }
   };
+
+  export const updateTrade = async (tradeId, tradeData) => {
+    try {
+      console.log(`Updating trade ${tradeId}`);
+      const response = await axios.put(`${BASE_URL}/trades/${tradeId}`, tradeData);
+      return response.data.trade;
+    } catch (error) {
+      console.error('Error updating trade:', error);
+      throw new Error(error.response?.data?.detail || 'Failed to update trade');
+    }
+  };
+  
+  export const deleteTrade = async (tradeId) => {
+    try {
+      console.log(`Deleting trade ${tradeId}`);
+      await axios.delete(`${BASE_URL}/trades/${tradeId}`);
+      return { message: 'Trade deleted successfully' };
+    } catch (error) {
+      console.error('Error deleting trade:', error);
+      throw new Error(error.response?.data?.detail || 'Failed to delete trade');
+    }
+  };
+  
+  export const toggleTradeVerified = async (tradeId, verified) => {
+    try {
+      console.log(`Toggling verified status for trade ${tradeId} to ${verified}`);
+      const response = await axios.patch(`${BASE_URL}/trades/${tradeId}/verify`, { verified });
+      return response.data.trade;
+    } catch (error) {
+      console.error('Error toggling verified status:', error);
+      throw new Error(error.response?.data?.detail || 'Failed to toggle verified status');
+    }
+  };

@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useMemo, Component } from 'react';
-import { getTrades } from '../../services/api';
+import React, { useEffect, useState, Component } from 'react';
+import { getTrades, updateTrade, deleteTrade, toggleTradeVerified } from '../../services/api';
 import Card from '../ui/Card';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
 
 class ErrorBoundary extends Component {
   state = { hasError: false, error: null };
@@ -29,6 +29,8 @@ const TradesTable = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
+  const [editTrade, setEditTrade] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -54,12 +56,55 @@ const TradesTable = () => {
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
     }));
+    setCurrentPage(1);
   };
 
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
+  };
+
+  const handleEdit = (trade) => {
+    setEditTrade({ ...trade });
+    setIsModalOpen(true);
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      const updatedTrade = await updateTrade(editTrade._id, editTrade);
+      setTrades(trades.map((t) => (t._id === updatedTrade._id ? updatedTrade : t)));
+      setIsModalOpen(false);
+      setEditTrade(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleDelete = async (tradeId) => {
+    if (window.confirm('Are you sure you want to delete this trade?')) {
+      try {
+        await deleteTrade(tradeId);
+        setTrades(trades.filter((t) => t._id !== tradeId));
+      } catch (err) {
+        setError(err.message);
+      }
+    }
+  };
+
+  const handleToggleVerified = async (tradeId, currentVerified) => {
+    try {
+      const updatedTrade = await toggleTradeVerified(tradeId, !currentVerified);
+      setTrades(trades.map((t) => (t._id === tradeId ? updatedTrade : t)));
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setEditTrade(null);
   };
 
   const renderSortIcon = (key) => {
@@ -96,25 +141,24 @@ const TradesTable = () => {
                       { key: 'created_at', label: 'Created At' },
                       { key: 'alert_sent', label: 'Alert Sent' },
                       { key: 'entry_alert_sent', label: 'Entry Alert Sent' },
+                      { key: 'verified', label: 'Verified' },
                       { key: 'note', label: 'Note' },
+                      { key: 'actions', label: 'Actions' },
                     ].map(({ key, label }) => (
                       <th
                         key={key}
                         className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={() => handleSort(key)}
+                        onClick={key !== 'actions' ? () => handleSort(key) : undefined}
                       >
                         {label}
-                        {renderSortIcon(key)}
+                        {key !== 'actions' && renderSortIcon(key)}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {sortedTrades.map((trade) => (
-                    <tr
-                      key={trade._id}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
+                    <tr key={trade._id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{trade.symbol}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{trade.entry_price}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{trade.stop_loss}</td>
@@ -154,7 +198,43 @@ const TradesTable = () => {
                           {trade.entry_alert_sent ? 'Yes' : 'No'}
                         </span>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            trade.verified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {trade.verified ? 'Yes' : 'No'}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{trade.note}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEdit(trade)}
+                            className="p-1 text-blue-600 hover:text-blue-800"
+                            title="Edit Trade"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(trade._id)}
+                            className="p-1 text-red-600 hover:text-red-800"
+                            title="Delete Trade"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleToggleVerified(trade._id, trade.verified)}
+                            className={`p-1 ${
+                              trade.verified ? 'text-gray-600 hover:text-gray-800' : 'text-green-600 hover:text-green-800'
+                            }`}
+                            title={trade.verified ? 'Mark as Unverified' : 'Mark as Verified'}
+                          >
+                            {trade.verified ? <XCircle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -199,6 +279,105 @@ const TradesTable = () => {
             </>
           )}
         </div>
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+              <h3 className="text-lg font-semibold mb-4">Edit Trade</h3>
+              <form onSubmit={handleUpdate}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Symbol</label>
+                  <input
+                    type="text"
+                    value={editTrade?.symbol || ''}
+                    onChange={(e) => setEditTrade({ ...editTrade, symbol: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                    required
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Entry Price</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editTrade?.entry_price || ''}
+                    onChange={(e) => setEditTrade({ ...editTrade, entry_price: parseFloat(e.target.value) })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                    required
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Stop Loss</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editTrade?.stop_loss || ''}
+                    onChange={(e) => setEditTrade({ ...editTrade, stop_loss: parseFloat(e.target.value) })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                    required
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Target Price</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editTrade?.target_price || ''}
+                    onChange={(e) => setEditTrade({ ...editTrade, target_price: parseFloat(e.target.value) })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                    required
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Trade Type</label>
+                  <select
+                    value={editTrade?.trade_type || ''}
+                    onChange={(e) => setEditTrade({ ...editTrade, trade_type: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                    required
+                  >
+                    <option value="BUY">BUY</option>
+                    <option value="SELL">SELL</option>
+                  </select>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Status</label>
+                  <select
+                    value={editTrade?.status || ''}
+                    onChange={(e) => setEditTrade({ ...editTrade, status: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                    required
+                  >
+                    <option value="OPEN">OPEN</option>
+                    <option value="CLOSED">CLOSED</option>
+                  </select>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Note</label>
+                  <textarea
+                    value={editTrade?.note || ''}
+                    onChange={(e) => setEditTrade({ ...editTrade, note: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={handleModalClose}
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    Save
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </Card>
     </ErrorBoundary>
   );
