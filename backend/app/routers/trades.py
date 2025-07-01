@@ -15,3 +15,17 @@ async def create_trade(trade: TradeCreate):
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+#get all trades
+@router.get("/")
+async def get_trades():
+    try:
+        trades = []
+        async for trade in trade_collection.find():
+            trade["_id"] = str(trade["_id"])
+            trades.append(trade)
+        return trades
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

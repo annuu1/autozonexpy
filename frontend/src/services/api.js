@@ -59,3 +59,19 @@ export const addTrade = async (symbol, entry_price, sl, target, trade_type, note
         throw new Error(error.response?.data?.detail || 'Failed to add trade');
     }
 }
+
+//get all trades
+export const getTrades = async () => {
+    try {
+        console.log('Fetching trades');
+        
+        const response = await axios.get(`${BASE_URL}/trades`);
+        
+        console.log('API Response:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching trades:', error);
+        throw new Error(error.response?.data?.detail || 'Failed to fetch trades');
+    }
+}
+    
