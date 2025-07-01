@@ -61,17 +61,19 @@ export const addTrade = async (symbol, entry_price, sl, target, trade_type, note
 }
 
 //get all trades
-export const getTrades = async () => {
+export const getTrades = async (page = 1, limit = 10, sortBy = 'created_at', sortOrder = 'desc') => {
     try {
-        console.log('Fetching trades');
-        
-        const response = await axios.get(`${BASE_URL}/trades`);
-        
-        console.log('API Response:', response.data);
-        return response.data;
+      console.log(`Fetching trades for page ${page}, limit ${limit}, sortBy ${sortBy}, sortOrder ${sortOrder}`);
+      const response = await axios.get(`${BASE_URL}/trades`, {
+        params: { page, limit, sort_by: sortBy, sort_order: sortOrder },
+      });
+      return {
+        trades: response.data.trades || [],
+        total_pages: response.data.total_pages || 1,
+        total_count: response.data.total_count || 0,
+      };
     } catch (error) {
-        console.error('Error fetching trades:', error);
-        throw new Error(error.response?.data?.detail || 'Failed to fetch trades');
+      console.error('Error fetching trades:', error);
+      throw new Error(error.response?.data?.detail || 'Failed to fetch trades');
     }
-}
-    
+  };

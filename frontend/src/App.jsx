@@ -39,7 +39,7 @@ function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-full mx-auto">
           <h1 className="text-4xl font-bold text-center mb-8 text-gray-800 bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
             GTF Demand Zone Finder
           </h1>
@@ -151,9 +151,9 @@ function App() {
             <Route
               path="/trades"
               element={
-                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl border border-white/20">
                   <h2 className="text-2xl font-bold mb-6 text-gray-800">Trades</h2>
-                  <div className="h-[600px] w-full">
+                  <div className="h-[700px] w-full">
                     <TradesTable />
                   </div>
                 </div>
