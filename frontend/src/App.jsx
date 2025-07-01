@@ -152,7 +152,7 @@ function App() {
               path="/trades"
               element={
                 <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
-                  <h2 className="text-2xl font-bold mb-6 text-gray-800">Zone Chart Test</h2>
+                  <h2 className="text-2xl font-bold mb-6 text-gray-800">Trades</h2>
                   <div className="h-[600px] w-full">
                     <TradesTable />
                   </div>
