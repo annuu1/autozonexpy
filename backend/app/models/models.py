@@ -39,6 +39,7 @@ class DemandZone(BaseModel):
     pattern: str
     timestamp: str
     end_timestamp: str
+    timeframes: Optional[List[str]] = None
     base_candles: float
     freshness: float
     parent_zone_id: Optional[str] = None

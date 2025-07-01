@@ -31,6 +31,7 @@ async def save_unique_zones(zones_by_ticker: Dict[str, List[DemandZone]], db_col
                     demand_zone = DemandZone(
                         zone_id=zone.zone_id,
                         ticker=zone_ticker, 
+                        timeframes=zone.timeframes,
                         proximal_line=zone.proximal_line,
                         distal_line=zone.distal_line,
                         trade_score=zone.trade_score,

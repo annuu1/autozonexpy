@@ -55,6 +55,7 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
                 h_zone["timestamp"] = h_zone["start_timestamp"]
                 h_zone["coinciding_lower_zones"] = []
                 h_zone["ticker"] = request.ticker
+                h_zone["timeframes"] = [request.higher_interval, request.lower_interval]
 
                 try:
                     start_date = parser.parse(h_zone["start_timestamp"]).date()
