@@ -6,12 +6,31 @@ from app.models.trade_models import TradeCreate, VerifyTrade
 from app.models.models import RealtimeData
 import yfinance as yf
 import logging
+from typing import List
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from datetime import datetime, timedelta
+import pandas as pd
+import numpy as np
+import math
 
-router = APIRouter(prefix = '/trades', tags=["trades"])
+router = APIRouter(prefix="/trades", tags=["trades"])
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Custom JSON encoder that handles NaN and infinity
+def json_serial(obj):
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
+    if isinstance(obj, (list, tuple)):
+        return [json_serial(item) for item in obj]
+    if isinstance(obj, dict):
+        return {k: json_serial(v) for k, v in obj.items()}
+    if isinstance(obj, (np.floating, float)) and (math.isnan(obj) or not math.isfinite(obj)):
+        return None
+    return str(obj)
 
 # Create a trade
 @router.post("/")
@@ -195,10 +214,13 @@ async def get_realtime_data(tickers: List[str]):
                 if not ticker_data.empty:
                     ltp = ticker_data['Close'].iloc[-1]
                     day_low = ticker_data['Low'].iloc[-1]
+                    # Convert NaN to None and handle non-finite values
+                    ltp_val = None if pd.isna(ltp) or not np.isfinite(ltp) else round(float(ltp), 2)
+                    day_low_val = None if pd.isna(day_low) or not np.isfinite(day_low) else round(float(day_low), 2)
                     realtime_data.append({
                         "symbol": original_ticker,
-                        "ltp": round(float(ltp), 2) if ltp is not None else None,
-                        "day_low": round(float(day_low), 2) if day_low is not None else None
+                        "ltp": ltp_val,
+                        "day_low": day_low_val
                     })
                 else:
                     logger.warning(f"No data found for ticker {ticker}")

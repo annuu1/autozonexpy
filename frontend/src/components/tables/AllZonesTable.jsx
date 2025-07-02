@@ -76,20 +76,38 @@ const AllZonesTable = () => {
 
   // Fetch realtime data for zones
   const fetchRealtimeData = useCallback(async () => {
+    if (!zones || zones.length === 0) return;
+    
     try {
       setRealtimeLoading(true);
-      const tickers = [...new Set(zones.map((zone) => zone.ticker))];
-      if (tickers.length > 0) {
-        const realtime = await getRealtimeData(tickers);
-        const realtimeMap = {};
-        realtime.forEach((data) => {
-          realtimeMap[data.symbol] = { ltp: data.ltp, day_low: data.day_low };
-        });
-        setRealtimeData(realtimeMap);
-      }
+      // Filter out any null/undefined tickers and ensure they're strings
+      const tickers = zones
+        .map(zone => zone?.ticker)
+        .filter(Boolean)
+        .map(String);
+      
+      if (tickers.length === 0) return;
+      
+      const data = await getRealtimeData(tickers);
+      
+      // Safely convert array to object for faster lookups
+      const dataMap = (data || []).reduce((acc, item) => {
+        if (item?.symbol) {
+          acc[item.symbol] = {
+            ltp: item.ltp != null ? Number(item.ltp) : null,
+            day_low: item.day_low != null ? Number(item.day_low) : null
+          };
+        }
+        return acc;
+      }, {});
+      
+      setRealtimeData(prev => ({
+        ...prev,
+        ...dataMap
+      }));
     } catch (err) {
+      console.error('Error fetching real-time data:', err);
       toast.error('Failed to fetch real-time data');
-      console.error('Realtime data error:', err);
     } finally {
       setRealtimeLoading(false);
     }
@@ -97,9 +115,31 @@ const AllZonesTable = () => {
 
   // Calculate percent difference between price (LTP or Day's Low) and proximal line
   const calculatePercentDiff = (zone) => {
-    const price = realtimeData[zone.ticker]?.[priceType];
-    if (!price || !zone.proximal_line) return null;
-    return ((price - zone.proximal_line) / zone.proximal_line * 100).toFixed(2);
+    if (!zone?.ticker || !zone?.proximal_line) return null;
+    
+    try {
+      const price = priceType === 'ltp' 
+        ? (realtimeData[zone.ticker]?.ltp ?? null)
+        : (realtimeData[zone.ticker]?.day_low ?? null);
+      
+      // If price is null, undefined, or not a valid number, return null
+      if (price === null || price === undefined || isNaN(price) || !isFinite(price)) {
+        return null;
+      }
+      
+      // Ensure proximal_line is a valid number
+      const proximalLine = Number(zone.proximal_line);
+      if (isNaN(proximalLine) || !isFinite(proximalLine) || proximalLine === 0) {
+        return null;
+      }
+      
+      // Calculate and return the percentage difference
+      const percentDiff = ((price - proximalLine) / proximalLine) * 100;
+      return isFinite(percentDiff) ? Number(percentDiff.toFixed(2)) : null;
+    } catch (error) {
+      console.error('Error calculating percent difference:', error);
+      return null;
+    }
   };
 
   // Filter zones by percent difference
