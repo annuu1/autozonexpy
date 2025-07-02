@@ -2,7 +2,7 @@ import React, { useEffect, useState, Component, useCallback } from 'react';
 import { getAllZones, deleteZone } from '../../services/zones';
 import { getRealtimeData } from '../../services/api';
 import Card from '../ui/Card';
-import { ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Trash2, RefreshCcw } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { debounce } from 'lodash';
@@ -39,29 +39,21 @@ const AllZonesTable = () => {
   const [realtimeData, setRealtimeData] = useState({});
   const [realtimeLoading, setRealtimeLoading] = useState(false);
   const [percentDiff, setPercentDiff] = useState('');
-  const [priceType, setPriceType] = useState('ltp'); // 'ltp' or 'day_low'
+  const [priceType, setPriceType] = useState('ltp');
   const [zoneToDelete, setZoneToDelete] = useState(null);
 
   // Debounced search update for ticker and pattern
-  const debouncedSearch = useCallback(
-    debounce((params) => {
-      setSearchParams(params);
-      setCurrentPage(1);
-    }, 300),
-    []
-  );
+  const debouncedSearch = useCallback(debounce((params) => {
+    setSearchParams(params);
+    setCurrentPage(1);
+  }, 300), []);
 
   // Fetch zones
   const fetchZones = useCallback(async () => {
     try {
       setLoading(true);
       const response = await getAllZones(
-        currentPage,
-        itemsPerPage,
-        sortConfig.key,
-        sortConfig.direction,
-        searchParams.ticker,
-        searchParams.pattern
+        currentPage, itemsPerPage, sortConfig.key, sortConfig.direction, searchParams.ticker, searchParams.pattern
       );
       setZones(response.data || []);
       setTotalPages(response.total_pages || 1);
@@ -74,23 +66,19 @@ const AllZonesTable = () => {
     }
   }, [currentPage, itemsPerPage, sortConfig, searchParams]);
 
-  // Fetch realtime data for zones
+  // ✅ Fetch realtime data (manual trigger only)
   const fetchRealtimeData = useCallback(async () => {
-    if (!zones || zones.length === 0) return;
-    
+    if (!zones || zones.length === 0) {
+      toast.info("No zones available for realtime fetch.");
+      return;
+    }
+
     try {
       setRealtimeLoading(true);
-      // Filter out any null/undefined tickers and ensure they're strings
-      const tickers = zones
-        .map(zone => zone?.ticker)
-        .filter(Boolean)
-        .map(String);
-      
+      const tickers = zones.map(zone => zone?.ticker).filter(Boolean).map(String);
       if (tickers.length === 0) return;
-      
       const data = await getRealtimeData(tickers);
-      
-      // Safely convert array to object for faster lookups
+
       const dataMap = (data || []).reduce((acc, item) => {
         if (item?.symbol) {
           acc[item.symbol] = {
@@ -100,40 +88,35 @@ const AllZonesTable = () => {
         }
         return acc;
       }, {});
-      
-      setRealtimeData(prev => ({
-        ...prev,
-        ...dataMap
-      }));
+
+      setRealtimeData(dataMap);
+      toast.success("Realtime data refreshed.");
     } catch (err) {
-      console.error('Error fetching real-time data:', err);
-      toast.error('Failed to fetch real-time data');
+      console.error("Error fetching realtime data:", err);
+      toast.error("Failed to fetch realtime data");
     } finally {
       setRealtimeLoading(false);
     }
   }, [zones]);
 
+    // ✅ Debounced zones fetch
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        fetchZones();
+      }, 400);
+      return () => clearTimeout(handler);
+    }, [searchParams, currentPage, itemsPerPage, sortConfig, fetchZones]);
+
   // Calculate percent difference between price (LTP or Day's Low) and proximal line
   const calculatePercentDiff = (zone) => {
     if (!zone?.ticker || !zone?.proximal_line) return null;
-    
     try {
-      const price = priceType === 'ltp' 
+      const price = priceType === 'ltp'
         ? (realtimeData[zone.ticker]?.ltp ?? null)
         : (realtimeData[zone.ticker]?.day_low ?? null);
-      
-      // If price is null, undefined, or not a valid number, return null
-      if (price === null || price === undefined || isNaN(price) || !isFinite(price)) {
-        return null;
-      }
-      
-      // Ensure proximal_line is a valid number
+      if (price === null || price === undefined || isNaN(price)) return null;
       const proximalLine = Number(zone.proximal_line);
-      if (isNaN(proximalLine) || !isFinite(proximalLine) || proximalLine === 0) {
-        return null;
-      }
-      
-      // Calculate and return the percentage difference
+      if (isNaN(proximalLine) || proximalLine === 0) return null;
       const percentDiff = ((price - proximalLine) / proximalLine) * 100;
       return isFinite(percentDiff) ? Number(percentDiff.toFixed(2)) : null;
     } catch (error) {
@@ -142,17 +125,14 @@ const AllZonesTable = () => {
     }
   };
 
+
   // Filter zones by percent difference
-  const filteredZones = zones.filter((zone) => {
+  const filteredZones = zones.filter(zone => {
     if (!percentDiff) return true;
     const diff = calculatePercentDiff(zone);
     if (diff === null) return false;
     return Math.abs(diff) <= parseFloat(percentDiff);
   });
-
-  useEffect(() => {
-    fetchZones();
-  }, [fetchZones]);
 
   useEffect(() => {
     if (zones.length > 0) {
@@ -176,7 +156,8 @@ const AllZonesTable = () => {
 
   const handleSearchChange = (e) => {
     const { name, value } = e.target;
-    debouncedSearch((prev) => ({ ...prev, [name]: value }));
+    setSearchParams((prev) => ({ ...prev, [name]: value }));
+    setCurrentPage(1);
   };
 
   const handleItemsPerPageChange = (e) => {
@@ -218,6 +199,20 @@ const AllZonesTable = () => {
     );
   };
 
+  // ✅ add RefreshCcw button into controls
+  const renderControls = () => (
+    <div className="flex gap-3">
+      <button
+        onClick={fetchRealtimeData}
+        disabled={realtimeLoading}
+        className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50"
+        title="Refresh Realtime Data"
+      >
+        <RefreshCcw className={`w-4 h-4 ${realtimeLoading ? 'animate-spin' : ''}`} />
+        Refresh
+      </button>
+    </div>
+  );
   const renderRowsPerPageSelector = () => (
     <div className="flex items-center space-x-2">
       <span className="text-sm text-gray-600">Rows per page:</span>
@@ -354,6 +349,7 @@ const AllZonesTable = () => {
                     <option value="ltp">LTP</option>
                     <option value="day_low">Day's Low</option>
                   </select>
+                  <div className="flex flex-wrap gap-4">{renderControls()}</div>
                 </div>
               </div>
             </div>

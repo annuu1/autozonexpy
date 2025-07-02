@@ -124,7 +124,7 @@ async def get_all_zones(
         # Build query filters
         query = {}
         if ticker:
-            query["ticker"] = ticker.upper()
+            query["ticker"] = {"$regex": ticker, "$options": "i"}
         if pattern:
             query["pattern"] = pattern.upper()
             

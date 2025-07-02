@@ -55,6 +55,7 @@ function MultiDemandZoneForm({ onZonesFetched }) {
       label: "Higher Timeframe Interval",
       type: "select",
       options: [
+        { value: "3mo", label: "Quaterly" },
         { value: "1mo", label: "Monthly" },
         { value: "1wk", label: "Weekly" },
         { value: "1d", label: "Daily" },
@@ -138,6 +139,7 @@ function MultiDemandZoneForm({ onZonesFetched }) {
       label: "Lower Timeframe Interval",
       type: "select",
       options: [
+        { value: "3mo", label: "Quarterly" },
         { value: "1mo", label: "Monthly" },
         { value: "1wk", label: "Weekly" },
         { value: "1d", label: "Daily" },

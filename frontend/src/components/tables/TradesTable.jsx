@@ -54,29 +54,35 @@ const TradesTable = () => {
   }, 300);
 
   // Fetch trades
+
+  const fetchTrades = async () => {
+    try {
+      setLoading(true);
+      const response = await getTrades(
+        currentPage,
+        itemsPerPage,
+        sortConfig.key,
+        sortConfig.direction,
+        searchParams.symbol,
+        searchParams.status
+      );
+      setTrades(response.trades || []);
+      setTotalPages(response.total_pages || 1);
+      setTotalCount(response.total_count || 0);
+    } catch (err) {
+      setError(err.message);
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   useEffect(() => {
-    const fetchTrades = async () => {
-      try {
-        setLoading(true);
-        const response = await getTrades(
-          currentPage,
-          itemsPerPage,
-          sortConfig.key,
-          sortConfig.direction,
-          searchParams.symbol,
-          searchParams.status
-        );
-        setTrades(response.trades || []);
-        setTotalPages(response.total_pages || 1);
-        setTotalCount(response.total_count || 0);
-      } catch (err) {
-        setError(err.message);
-        toast.error(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTrades();
+
+    const handler = setTimeout(() => {
+      fetchTrades();
+    }, 500);
+    return () => clearTimeout(handler); 
   }, [currentPage, sortConfig, searchParams, itemsPerPage]);
 
   // Fetch real-time data
@@ -298,9 +304,11 @@ const TradesTable = () => {
     if (name === 'percent_diff') {
       setPercentDiff(value);
     } else {
-      debouncedSearch((prev) => ({ ...prev, [name]: value }));
+      setSearchParams((prev) => ({ ...prev, [name]: value }));
+      setCurrentPage(1);
     }
   };
+  
 
   const handleModalClose = () => {
     setIsModalOpen(false);
