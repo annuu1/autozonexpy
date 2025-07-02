@@ -2,7 +2,8 @@ import React, { useEffect, useState, Component } from 'react';
 import { getTrades, updateTrade, deleteTrade, toggleTradeVerified, addTrade, getRealtimeData } from '../../services/api';
 import Card from '../ui/Card';
 import Modal from '../ui/Modal';
-import { ChevronUp, ChevronDown, Edit, Trash2, CheckCircle, XCircle, PlusCircle } from 'lucide-react';
+import { RefreshCw, PlusCircle, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { debounce } from 'lodash';
@@ -76,7 +77,7 @@ const TradesTable = () => {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => {
 
     const handler = setTimeout(() => {
@@ -85,31 +86,29 @@ const TradesTable = () => {
     return () => clearTimeout(handler); 
   }, [currentPage, sortConfig, searchParams, itemsPerPage]);
 
-  // Fetch real-time data
-  useEffect(() => {
-    const fetchRealtimeData = async () => {
-      try {
-        setRealtimeLoading(true);
-        const tickers = [...new Set(trades.map((trade) => trade.symbol))];
-        if (tickers.length > 0) {
-          const realtime = await getRealtimeData(tickers);
-          const realtimeMap = {};
-          realtime.forEach((data) => {
-            realtimeMap[data.symbol] = { ltp: data.ltp, day_low: data.day_low };
-          });
-          setRealtimeData(realtimeMap);
-        }
-      } catch (err) {
-        toast.error('Failed to fetch real-time data');
-        console.error('Realtime data error:', err);
-      } finally {
-        setRealtimeLoading(false);
+  //fetch real time data manually
+  const fetchRealtimeDataManually = async () => {
+    try {
+      setRealtimeLoading(true);
+      const tickers = [...new Set(trades.map((trade) => trade.symbol))];
+      if (tickers.length > 0) {
+        const realtime = await getRealtimeData(tickers);
+        const realtimeMap = {};
+        realtime.forEach((data) => {
+          realtimeMap[data.symbol] = { ltp: data.ltp, day_low: data.day_low };
+        });
+        setRealtimeData(realtimeMap);
+        toast.success('Realtime data refreshed successfully');
+      } else {
+        toast.info('No symbols to refresh');
       }
-    };
-    if (trades.length > 0) {
-      fetchRealtimeData();
+    } catch (err) {
+      toast.error('Failed to fetch real-time data');
+      console.error('Realtime data error:', err);
+    } finally {
+      setRealtimeLoading(false);
     }
-  }, [trades]);
+  };
 
   // Calculate percent difference between price (LTP or Day's Low) and entry_price
   const calculatePercentDiff = (trade) => {
@@ -540,6 +539,13 @@ const TradesTable = () => {
                     <option value="ltp">LTP</option>
                     <option value="day_low">Day's Low</option>
                   </select>
+                  <button
+                    onClick={fetchRealtimeDataManually}
+                    className="flex items-center px-4 py-1.5 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm font-medium"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    LTP
+                  </button>
                 </div>
               </div>
             </div>
