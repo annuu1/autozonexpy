@@ -1,5 +1,6 @@
 import React, { useEffect, useState, Component, useCallback } from 'react';
 import { getAllZones } from '../../services/zones';
+import { getRealtimeData } from '../../services/api';
 import Card from '../ui/Card';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
@@ -35,6 +36,10 @@ const AllZonesTable = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'trade_score', direction: 'desc' });
   const [searchParams, setSearchParams] = useState({ ticker: '', pattern: '' });
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [realtimeData, setRealtimeData] = useState({});
+  const [realtimeLoading, setRealtimeLoading] = useState(false);
+  const [percentDiff, setPercentDiff] = useState('');
+  const [priceType, setPriceType] = useState('ltp'); // 'ltp' or 'day_low'
 
   // Debounced search update for ticker and pattern
   const debouncedSearch = useCallback(
@@ -68,9 +73,51 @@ const AllZonesTable = () => {
     }
   }, [currentPage, itemsPerPage, sortConfig, searchParams]);
 
+  // Fetch realtime data for zones
+  const fetchRealtimeData = useCallback(async () => {
+    try {
+      setRealtimeLoading(true);
+      const tickers = [...new Set(zones.map((zone) => zone.ticker))];
+      if (tickers.length > 0) {
+        const realtime = await getRealtimeData(tickers);
+        const realtimeMap = {};
+        realtime.forEach((data) => {
+          realtimeMap[data.symbol] = { ltp: data.ltp, day_low: data.day_low };
+        });
+        setRealtimeData(realtimeMap);
+      }
+    } catch (err) {
+      toast.error('Failed to fetch real-time data');
+      console.error('Realtime data error:', err);
+    } finally {
+      setRealtimeLoading(false);
+    }
+  }, [zones]);
+
+  // Calculate percent difference between price (LTP or Day's Low) and proximal line
+  const calculatePercentDiff = (zone) => {
+    const price = realtimeData[zone.ticker]?.[priceType];
+    if (!price || !zone.proximal_line) return null;
+    return ((price - zone.proximal_line) / zone.proximal_line * 100).toFixed(2);
+  };
+
+  // Filter zones by percent difference
+  const filteredZones = zones.filter((zone) => {
+    if (!percentDiff) return true;
+    const diff = calculatePercentDiff(zone);
+    if (diff === null) return false;
+    return Math.abs(diff) <= parseFloat(percentDiff);
+  });
+
   useEffect(() => {
     fetchZones();
   }, [fetchZones]);
+
+  useEffect(() => {
+    if (zones.length > 0) {
+      fetchRealtimeData();
+    }
+  }, [zones, fetchRealtimeData]);
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({
@@ -118,6 +165,9 @@ const AllZonesTable = () => {
         <option value={10}>10</option>
         <option value={25}>25</option>
         <option value={50}>50</option>
+        <option value={100}>100</option>
+        <option value={200}>200</option>
+        <option value={500}>500</option>
       </select>
     </div>
   );
@@ -220,10 +270,31 @@ const AllZonesTable = () => {
                   <option value="RBR">RBR</option>
                 </select>
               </div>
+              <div className="flex flex-col text-xs w-[200px]">
+                <label className="text-gray-600 font-medium mb-1">Max % Difference</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={percentDiff}
+                    onChange={(e) => setPercentDiff(e.target.value)}
+                    placeholder="Filter by %"
+                    className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+                  />
+                  <select
+                    value={priceType}
+                    onChange={(e) => setPriceType(e.target.value)}
+                    className="px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+                  >
+                    <option value="ltp">LTP</option>
+                    <option value="day_low">Day's Low</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto">
-            {zones.length === 0 ? (
+            {filteredZones.length === 0 ? (
               <div className="p-4 text-center text-gray-500">No zones available</div>
             ) : (
               <>
@@ -275,10 +346,13 @@ const AllZonesTable = () => {
                       >
                         Created {renderSortIcon('timestamp')}
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        % Difference
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {zones.map((zone) => (
+                    {filteredZones.map((zone) => (
                       <tr key={zone._id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {zone.ticker}
@@ -313,6 +387,21 @@ const AllZonesTable = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(zone.timestamp).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {realtimeLoading ? (
+                            <span className="text-gray-400 text-xs">Loading...</span>
+                          ) : calculatePercentDiff(zone) !== null ? (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              parseFloat(calculatePercentDiff(zone)) > 0 ? 'text-green-800 bg-green-100' : 
+                              parseFloat(calculatePercentDiff(zone)) < 0 ? 'text-red-800 bg-red-100' :
+                              'text-gray-800 bg-gray-100'
+                            }`}>
+                              {parseFloat(calculatePercentDiff(zone)) > 0 ? '+' : ''}{calculatePercentDiff(zone)}%
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">N/A</span>
+                          )}
                         </td>
                       </tr>
                     ))}
