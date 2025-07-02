@@ -45,7 +45,7 @@ async def identify_demand_zones(
     min_legin_movement: int = 4,
 ) -> List[Dict]:
     min_leg_movement = min_legin_movement
-    DEBUG = True  # ⬅️ Turn to False in production
+    DEBUG = False  # ⬅️ Turn to False in production
     demand_zones = []
     i = 0
     print(data)
