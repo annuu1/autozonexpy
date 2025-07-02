@@ -137,3 +137,15 @@ export const getTrades = async (page = 1, limit = 10, sortBy = 'created_at', sor
       throw new Error(error.response?.data?.detail || 'Failed to toggle verified status');
     }
   };
+
+export const getRealtimeData = async (tickers) => {
+  try {
+    console.log(`Fetching real-time data for tickers: ${tickers.join(', ')}`);
+    const response = await axios.post(`${BASE_URL}/trades/realtime-data`, tickers);
+    console.log('Realtime Data API Response:', response.data);
+    return response.data.realtime_data || [];
+  } catch (error) {
+    console.error('Error fetching real-time data:', error);
+    throw new Error(JSON.stringify(error.response?.data?.detail) || 'Failed to fetch real-time data');
+  }
+};

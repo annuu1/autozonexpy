@@ -1,10 +1,17 @@
-from typing import Optional
+from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from app.db.database import trade_collection
 from bson import ObjectId
 from app.models.trade_models import TradeCreate, VerifyTrade
+from app.models.models import RealtimeData
+import yfinance as yf
+import logging
 
 router = APIRouter(prefix = '/trades', tags=["trades"])
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Create a trade
 @router.post("/")
@@ -15,6 +22,22 @@ async def create_trade(trade: TradeCreate):
         created_trade = await trade_collection.find_one({"_id": ObjectId(result.inserted_id)})
         created_trade["_id"] = str(created_trade["_id"])
         return {"message": "Trade added successfully!", "trade_id": str(result.inserted_id), "trade": created_trade}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+# Get a single trade
+@router.get("/{trade_id}")
+async def get_trade(trade_id: str):
+    try:
+        if not ObjectId.is_valid(trade_id):
+            raise HTTPException(status_code=400, detail="Invalid trade ID")
+        trade = await trade_collection.find_one({"_id": ObjectId(trade_id)})
+        if not trade:
+            raise HTTPException(status_code=404, detail="Trade not found")
+        trade["_id"] = str(trade["_id"])
+        return {"trade": trade}
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -140,3 +163,59 @@ async def toggle_trade_verified(trade_id: str, verify_data: VerifyTrade):
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+# Get real-time data for multiple tickers
+@router.post("/realtime-data")
+async def get_realtime_data(tickers: List[str]):
+    try:
+        # Remove duplicates and empty strings, append .NS for Indian stocks
+        tickers = list(set([t + ".NS" for t in tickers if t.strip()]))
+        if not tickers:
+            return {"realtime_data": []}
+
+        logger.info(f"Fetching real-time data for tickers: {tickers}")
+
+        # Fetch data using yfinance
+        data = yf.download(
+            tickers=tickers,
+            period="1d",
+            interval="1d",
+            group_by="ticker",
+            threads=True,
+            ignore_tz=True
+        )
+
+        realtime_data = []
+        for ticker in tickers:
+            try:
+                # Remove .NS for response to match original symbol
+                original_ticker = ticker.replace(".NS", "")
+                ticker_data = data[ticker] if len(tickers) > 1 else data
+                if not ticker_data.empty:
+                    ltp = ticker_data['Close'].iloc[-1]
+                    day_low = ticker_data['Low'].iloc[-1]
+                    realtime_data.append({
+                        "symbol": original_ticker,
+                        "ltp": round(float(ltp), 2) if ltp is not None else None,
+                        "day_low": round(float(day_low), 2) if day_low is not None else None
+                    })
+                else:
+                    logger.warning(f"No data found for ticker {ticker}")
+                    realtime_data.append({
+                        "symbol": original_ticker,
+                        "ltp": None,
+                        "day_low": None
+                    })
+            except (KeyError, IndexError, ValueError) as e:
+                logger.error(f"Error processing ticker {ticker}: {str(e)}")
+                realtime_data.append({
+                    "symbol": original_ticker,
+                    "ltp": None,
+                    "day_low": None
+                })
+
+        return {"realtime_data": realtime_data}
+    except Exception as e:
+        logger.error(f"Failed to fetch real-time data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch real-time data: {str(e)}")

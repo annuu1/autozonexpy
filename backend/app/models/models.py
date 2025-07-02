@@ -10,6 +10,10 @@ class GetZonesRequest(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 
+class RealtimeData(BaseModel):
+    symbol: str
+    ltp: Optional[float] = None
+    day_low: Optional[float] = None
 
 class StockRequest(BaseModel):
     ticker: str

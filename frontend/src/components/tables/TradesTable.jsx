@@ -1,5 +1,5 @@
 import React, { useEffect, useState, Component } from 'react';
-import { getTrades, updateTrade, deleteTrade, toggleTradeVerified, addTrade } from '../../services/api';
+import { getTrades, updateTrade, deleteTrade, toggleTradeVerified, addTrade, getRealtimeData } from '../../services/api';
 import Card from '../ui/Card';
 import Modal from '../ui/Modal';
 import { ChevronUp, ChevronDown, Edit, Trash2, CheckCircle, XCircle, PlusCircle } from 'lucide-react';
@@ -28,6 +28,8 @@ class ErrorBoundary extends Component {
 
 const TradesTable = () => {
   const [trades, setTrades] = useState([]);
+  const [realtimeData, setRealtimeData] = useState({});
+  const [realtimeLoading, setRealtimeLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,16 +41,18 @@ const TradesTable = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('edit'); // 'edit' or 'add'
   const [searchParams, setSearchParams] = useState({ symbol: '', status: '' });
+  const [percentDiff, setPercentDiff] = useState('');
   const [targetRatio, setTargetRatio] = useState('1:2');
   const [formErrors, setFormErrors] = useState({});
   const itemsPerPage = 10;
 
-  // Debounced search update
+  // Debounced search update for symbol and status
   const debouncedSearch = debounce((params) => {
     setSearchParams(params);
     setCurrentPage(1);
   }, 300);
 
+  // Fetch trades
   useEffect(() => {
     const fetchTrades = async () => {
       try {
@@ -74,7 +78,46 @@ const TradesTable = () => {
     fetchTrades();
   }, [currentPage, sortConfig, searchParams]);
 
-  const sortedTrades = trades;
+  // Fetch real-time data
+  useEffect(() => {
+    const fetchRealtimeData = async () => {
+      try {
+        setRealtimeLoading(true);
+        const tickers = [...new Set(trades.map((trade) => trade.symbol))];
+        if (tickers.length > 0) {
+          const realtime = await getRealtimeData(tickers);
+          const realtimeMap = {};
+          realtime.forEach((data) => {
+            realtimeMap[data.symbol] = { ltp: data.ltp, day_low: data.day_low };
+          });
+          setRealtimeData(realtimeMap);
+        }
+      } catch (err) {
+        toast.error('Failed to fetch real-time data');
+        console.error('Realtime data error:', err);
+      } finally {
+        setRealtimeLoading(false);
+      }
+    };
+    if (trades.length > 0) {
+      fetchRealtimeData();
+    }
+  }, [trades]);
+
+  // Calculate percent difference between LTP and entry_price
+  const calculatePercentDiff = (trade) => {
+    const ltp = realtimeData[trade.symbol]?.ltp;
+    if (!ltp || !trade.entry_price) return 'N/A';
+    return ((ltp - trade.entry_price) / trade.entry_price * 100).toFixed(2);
+  };
+
+  // Filter trades by percent difference
+  const filteredTrades = trades.filter((trade) => {
+    if (!percentDiff) return true;
+    const percentDiffValue = calculatePercentDiff(trade);
+    if (percentDiffValue === 'N/A') return false;
+    return Math.abs(percentDiffValue) <= parseFloat(percentDiff);
+  });
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({
@@ -222,7 +265,6 @@ const TradesTable = () => {
         setTotalCount((prev) => prev - 1);
         const newTotalPages = Math.ceil((totalCount - 1) / itemsPerPage);
         setTotalPages(newTotalPages);
-        // Adjust current page if necessary
         if (updatedTrades.length === 0 && currentPage > 1 && currentPage > newTotalPages) {
           setCurrentPage(newTotalPages);
         }
@@ -252,7 +294,11 @@ const TradesTable = () => {
 
   const handleSearchChange = (e) => {
     const { name, value } = e.target;
-    debouncedSearch((prev) => ({ ...prev, [name]: value }));
+    if (name === 'percent_diff') {
+      setPercentDiff(value);
+    } else {
+      debouncedSearch((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleModalClose = () => {
@@ -269,7 +315,6 @@ const TradesTable = () => {
       ? parseFloat(value) || ''
       : value;
 
-    // Update target_price based on targetRatio
     if ((field === 'entry_price' || field === 'stop_loss' || field === 'trade_type' || field === 'targetRatio') && trade.entry_price && trade.stop_loss) {
       trade.target_price = calculateTargetPrice(trade.entry_price, trade.stop_loss, trade.trade_type, field === 'targetRatio' ? value : targetRatio);
     }
@@ -282,7 +327,6 @@ const TradesTable = () => {
     if (field === 'targetRatio') {
       setTargetRatio(value);
     }
-    // Re-validate on change
     setFormErrors(validateTrade(trade));
   };
 
@@ -332,7 +376,7 @@ const TradesTable = () => {
           step="1"
           value={trade?.stop_loss || ''}
           onChange={(e) => handleFormChange('stop_loss', e.target.value, isEditMode)}
-          className={`px-3 py-1.5 border ${formErrors.stop_loss ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
+          className={`px-3 py-1.5 border(interval) ${formErrors.stop_loss ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
           placeholder="0"
           required
         />
@@ -443,6 +487,18 @@ const TradesTable = () => {
                   <option value="CLOSED">CLOSED</option>
                 </select>
               </div>
+              <div className="flex flex-col text-xs w-[150px]">
+                <label className="text-gray-600 font-medium mb-1">Max % Difference</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  name="percent_diff"
+                  value={percentDiff}
+                  onChange={handleSearchChange}
+                  placeholder="e.g., 1 for ≤1%"
+                  className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+                />
+              </div>
             </div>
             <button
               onClick={handleAddTrade}
@@ -457,7 +513,7 @@ const TradesTable = () => {
               <div className="p-4 text-center text-gray-500 animate-pulse">Loading trades...</div>
             ) : error ? (
               <div className="p-4 text-center text-red-500">{error}</div>
-            ) : trades.length === 0 ? (
+            ) : filteredTrades.length === 0 ? (
               <div className="p-4 text-center text-gray-500">No trades available</div>
             ) : (
               <>
@@ -465,6 +521,7 @@ const TradesTable = () => {
                   <thead className="bg-gray-50/80 backdrop-blur-sm sticky top-0">
                     <tr>
                       {[
+                        { key: 'realtime_data', label: 'Realtime Data' },
                         { key: 'symbol', label: 'Symbol' },
                         { key: 'entry_price', label: 'Entry Price' },
                         { key: 'stop_loss', label: 'Stop Loss' },
@@ -480,18 +537,30 @@ const TradesTable = () => {
                       ].map(({ key, label }) => (
                         <th
                           key={key}
-                          className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={key !== 'actions' ? () => handleSort(key) : undefined}
+                          className={`px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${key === 'realtime_data' ? 'w-32' : ''}`}
+                          onClick={key !== 'actions' && key !== 'realtime_data' ? () => handleSort(key) : undefined}
                         >
                           {label}
-                          {key !== 'actions' && renderSortIcon(key)}
+                          {key !== 'actions' && key !== 'realtime_data' && renderSortIcon(key)}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {sortedTrades.map((trade) => (
+                    {filteredTrades.map((trade) => (
                       <tr key={trade._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {realtimeLoading ? (
+                            <span className="text-gray-500 animate-pulse">Fetching...</span>
+                          ) : (
+                            <div className="flex flex-col space-y-1">
+                              <span>{trade.symbol}</span>
+                              <span>LTP: {realtimeData[trade.symbol]?.ltp ?? 'N/A'}</span>
+                              <span>Day's Low: {realtimeData[trade.symbol]?.day_low ?? 'N/A'}</span>
+                              <span>% Diff: {calculatePercentDiff(trade)}%</span>
+                            </div>
+                          )}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{trade.symbol}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{trade.entry_price}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{trade.stop_loss}</td>
