@@ -1,5 +1,5 @@
 import React, { useEffect, useState, Component } from 'react';
-import { getTrades, updateTrade, deleteTrade, toggleTradeVerified, createTrade } from '../../services/api';
+import { getTrades, updateTrade, deleteTrade, toggleTradeVerified, addTrade } from '../../services/api';
 import Card from '../ui/Card';
 import Modal from '../ui/Modal';
 import { ChevronUp, ChevronDown, Edit, Trash2, CheckCircle, XCircle, PlusCircle } from 'lucide-react';
@@ -32,6 +32,7 @@ const TradesTable = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
   const [editTrade, setEditTrade] = useState(null);
   const [newTrade, setNewTrade] = useState(null);
@@ -39,6 +40,7 @@ const TradesTable = () => {
   const [modalMode, setModalMode] = useState('edit'); // 'edit' or 'add'
   const [searchParams, setSearchParams] = useState({ symbol: '', status: '' });
   const [targetRatio, setTargetRatio] = useState('1:2');
+  const [formErrors, setFormErrors] = useState({});
   const itemsPerPage = 10;
 
   // Debounced search update
@@ -61,6 +63,7 @@ const TradesTable = () => {
         );
         setTrades(response.trades || []);
         setTotalPages(response.total_pages || 1);
+        setTotalCount(response.total_count || 0);
       } catch (err) {
         setError(err.message);
         toast.error(err.message);
@@ -89,18 +92,48 @@ const TradesTable = () => {
 
   const calculateTargetPrice = (entry_price, stop_loss, trade_type, ratio) => {
     if (!entry_price || !stop_loss) return '';
-    const diff = entry_price - stop_loss;
+    const diff = Math.abs(entry_price - stop_loss);
     const multiplier = ratio === '1:2' ? 2 : 3;
     return trade_type === 'BUY'
-      ? (entry_price + diff * multiplier).toFixed(2)
-      : (entry_price - diff * multiplier).toFixed(2);
+      ? Math.round(entry_price + diff * multiplier)
+      : Math.round(entry_price - diff * multiplier);
+  };
+
+  const validateTrade = (trade) => {
+    const errors = {};
+    if (!trade.symbol.trim()) {
+      errors.symbol = 'Symbol is required';
+    }
+    if (!trade.entry_price || trade.entry_price <= 0) {
+      errors.entry_price = 'Entry price must be positive';
+    }
+    if (!trade.stop_loss || trade.stop_loss <= 0) {
+      errors.stop_loss = 'Stop loss must be positive';
+    }
+    if (!trade.target_price || trade.target_price <= 0) {
+      errors.target_price = 'Target price must be positive';
+    }
+    if (trade.entry_price && trade.stop_loss && trade.trade_type === 'BUY' && trade.stop_loss >= trade.entry_price) {
+      errors.stop_loss = 'Stop Loss must be less than Entry Price for BUY';
+    }
+    if (trade.entry_price && trade.stop_loss && trade.trade_type === 'SELL' && trade.stop_loss <= trade.entry_price) {
+      errors.stop_loss = 'Stop Loss must be greater than Entry Price for SELL';
+    }
+    if (trade.entry_price && trade.target_price && trade.trade_type === 'BUY' && trade.target_price <= trade.entry_price) {
+      errors.target_price = 'Target Price must be greater than Entry Price for BUY';
+    }
+    if (trade.entry_price && trade.target_price && trade.trade_type === 'SELL' && trade.target_price >= trade.entry_price) {
+      errors.target_price = 'Target Price must be less than Entry Price for SELL';
+    }
+    return errors;
   };
 
   const handleEdit = (trade) => {
     setEditTrade({ ...trade });
-    setTargetRatio('1:2'); // Reset to default for edit
+    setTargetRatio('1:2');
     setModalMode('edit');
     setIsModalOpen(true);
+    setFormErrors({});
   };
 
   const handleAddTrade = () => {
@@ -116,33 +149,67 @@ const TradesTable = () => {
     setTargetRatio('1:2');
     setModalMode('add');
     setIsModalOpen(true);
+    setFormErrors({});
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    const errors = validateTrade(editTrade);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      Object.values(errors).forEach((error) => toast.error(error));
+      return;
+    }
     try {
       const updatedTrade = await updateTrade(editTrade._id, editTrade);
       setTrades(trades.map((t) => (t._id === updatedTrade._id ? updatedTrade : t)));
       setIsModalOpen(false);
       setEditTrade(null);
+      setFormErrors({});
       toast.success('Trade updated successfully');
     } catch (err) {
       setError(err.message);
-      toast.error(err.message);
+      const errorDetail = err.message.includes('detail') ? JSON.parse(err.message.split('detail: ')[1]) : err.message;
+      if (Array.isArray(errorDetail)) {
+        errorDetail.forEach((e) => toast.error(e.msg));
+      } else {
+        toast.error(err.message);
+      }
     }
   };
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    const errors = validateTrade(newTrade);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      Object.values(errors).forEach((error) => toast.error(error));
+      return;
+    }
     try {
-      const createdTrade = await createTrade(newTrade);
-      setTrades([createdTrade, ...trades].slice(0, itemsPerPage));
+      const response = await addTrade(
+        newTrade.symbol,
+        newTrade.entry_price,
+        newTrade.stop_loss,
+        newTrade.target_price,
+        newTrade.trade_type,
+        newTrade.note
+      );
+      setTrades([response, ...trades].slice(0, itemsPerPage));
+      setTotalCount((prev) => prev + 1);
+      setTotalPages(Math.ceil((totalCount + 1) / itemsPerPage));
       setIsModalOpen(false);
       setNewTrade(null);
+      setFormErrors({});
       toast.success('Trade created successfully');
     } catch (err) {
       setError(err.message);
-      toast.error(err.message);
+      const errorDetail = err.message.includes('detail') ? JSON.parse(err.message.split('detail: ')[1]) : err.message;
+      if (Array.isArray(errorDetail)) {
+        errorDetail.forEach((e) => toast.error(e.msg));
+      } else {
+        toast.error(err.message);
+      }
     }
   };
 
@@ -150,11 +217,24 @@ const TradesTable = () => {
     if (window.confirm('Are you sure you want to delete this trade?')) {
       try {
         await deleteTrade(tradeId);
-        setTrades(trades.filter((t) => t._id !== tradeId));
+        const updatedTrades = trades.filter((t) => t._id !== tradeId);
+        setTrades(updatedTrades);
+        setTotalCount((prev) => prev - 1);
+        const newTotalPages = Math.ceil((totalCount - 1) / itemsPerPage);
+        setTotalPages(newTotalPages);
+        // Adjust current page if necessary
+        if (updatedTrades.length === 0 && currentPage > 1 && currentPage > newTotalPages) {
+          setCurrentPage(newTotalPages);
+        }
         toast.success('Trade deleted successfully');
       } catch (err) {
         setError(err.message);
-        toast.error(err.message);
+        const errorDetail = err.message.includes('detail') ? JSON.parse(err.message.split('detail: ')[1]) : err.message;
+        if (Array.isArray(errorDetail)) {
+          errorDetail.forEach((e) => toast.error(e.msg));
+        } else {
+          toast.error(err.message);
+        }
       }
     }
   };
@@ -180,6 +260,7 @@ const TradesTable = () => {
     setEditTrade(null);
     setNewTrade(null);
     setTargetRatio('1:2');
+    setFormErrors({});
   };
 
   const handleFormChange = (field, value, isEditMode) => {
@@ -201,6 +282,8 @@ const TradesTable = () => {
     if (field === 'targetRatio') {
       setTargetRatio(value);
     }
+    // Re-validate on change
+    setFormErrors(validateTrade(trade));
   };
 
   const renderSortIcon = (key) => {
@@ -223,46 +306,50 @@ const TradesTable = () => {
           type="text"
           value={trade?.symbol || ''}
           onChange={(e) => handleFormChange('symbol', e.target.value, isEditMode)}
-          className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+          className={`px-3 py-1.5 border ${formErrors.symbol ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
           placeholder="Enter symbol"
           required
         />
+        {formErrors.symbol && <p className="text-red-500 text-xs mt-1">{formErrors.symbol}</p>}
       </div>
       <div className="flex flex-col text-xs w-[100px]">
         <label className="text-gray-600 font-medium mb-1">Entry Price</label>
         <input
           type="number"
-          step="0.01"
+          step="1"
           value={trade?.entry_price || ''}
           onChange={(e) => handleFormChange('entry_price', e.target.value, isEditMode)}
-          className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-          placeholder="0.00"
+          className={`px-3 py-1.5 border ${formErrors.entry_price ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
+          placeholder="0"
           required
         />
+        {formErrors.entry_price && <p className="text-red-500 text-xs mt-1">{formErrors.entry_price}</p>}
       </div>
       <div className="flex flex-col text-xs w-[100px]">
         <label className="text-gray-600 font-medium mb-1">Stop Loss</label>
         <input
           type="number"
-          step="0.01"
+          step="1"
           value={trade?.stop_loss || ''}
           onChange={(e) => handleFormChange('stop_loss', e.target.value, isEditMode)}
-          className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-          placeholder="0.00"
+          className={`px-3 py-1.5 border ${formErrors.stop_loss ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
+          placeholder="0"
           required
         />
+        {formErrors.stop_loss && <p className="text-red-500 text-xs mt-1">{formErrors.stop_loss}</p>}
       </div>
       <div className="flex flex-col text-xs w-[100px]">
         <label className="text-gray-600 font-medium mb-1">Target Price</label>
         <input
           type="number"
-          step="0.01"
+          step="1"
           value={trade?.target_price || ''}
           onChange={(e) => handleFormChange('target_price', e.target.value, isEditMode)}
-          className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-          placeholder="0.00"
+          className={`px-3 py-1.5 border ${formErrors.target_price ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
+          placeholder="0"
           required
         />
+        {formErrors.target_price && <p className="text-red-500 text-xs mt-1">{formErrors.target_price}</p>}
       </div>
       <div className="flex flex-col text-xs w-[100px]">
         <label className="text-gray-600 font-medium mb-1">Target Ratio</label>
@@ -488,7 +575,7 @@ const TradesTable = () => {
                 <div className="flex justify-between items-center mt-4 px-6 py-3 bg-gray-50/80">
                   <div className="text-sm text-gray-700">
                     Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-                    {Math.min(currentPage * itemsPerPage, trades.length)} of {trades.length} trades
+                    {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} trades
                   </div>
                   <div className="flex space-x-2">
                     <button

@@ -6,13 +6,15 @@ from app.models.trade_models import TradeCreate, VerifyTrade
 
 router = APIRouter(prefix = '/trades', tags=["trades"])
 
-#create
+# Create a trade
 @router.post("/")
 async def create_trade(trade: TradeCreate):
     try:
         trade_dict = trade.dict()
-        trade_collection.insert_one(trade_dict)
-        return {"message": "Trade added successfully!"}
+        result = await trade_collection.insert_one(trade_dict)
+        created_trade = await trade_collection.find_one({"_id": ObjectId(result.inserted_id)})
+        created_trade["_id"] = str(created_trade["_id"])
+        return {"message": "Trade added successfully!", "trade_id": str(result.inserted_id), "trade": created_trade}
     except HTTPException as e:
         raise e
     except Exception as e:

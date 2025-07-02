@@ -60,15 +60,29 @@ export const addTrade = async (symbol, entry_price, sl, target, trade_type, note
     }
 }
 
-export const createTrade = async (tradeData) => {
+export const createTrade = async (symbol, entry_price, stop_loss, target_price, trade_type, note) => {
     try {
-      console.log('Creating new trade:', tradeData);
-      const response = await axios.post(`${BASE_URL}/trades`, tradeData);
-      const createdTrade = await axios.get(`${BASE_URL}/trades/${response.data.trade_id}`);
-      return createdTrade.data.trade;
+      console.log(`Adding trade: ${symbol}, ${entry_price}, ${stop_loss}, ${target_price}, ${trade_type}, ${note}`);
+      const response = await axios.post(`${BASE_URL}/trades`, {
+        symbol,
+        entry_price,
+        stop_loss,
+        target_price,
+        trade_type,
+        status: "OPEN",
+        alert_sent: false,
+        entry_alert_sent: false,
+        note,
+        created_at: new Date().toISOString(),
+        verified: false,
+      });
+      console.log('API Response:', response.data);
+      // Fetch the full trade object to include _id and other fields
+      const tradeResponse = await axios.get(`${BASE_URL}/trades/${response.data.trade_id}`);
+      return tradeResponse.data.trade;
     } catch (error) {
-      console.error('Error creating trade:', error);
-      throw new Error(error.response?.data?.detail || 'Failed to create trade');
+      console.error('Error adding trade:', error);
+      throw new Error(JSON.stringify(error.response?.data?.detail) || 'Failed to add trade');
     }
   };
   
@@ -104,11 +118,12 @@ export const getTrades = async (page = 1, limit = 10, sortBy = 'created_at', sor
   export const deleteTrade = async (tradeId) => {
     try {
       console.log(`Deleting trade ${tradeId}`);
-      await axios.delete(`${BASE_URL}/trades/${tradeId}`);
-      return { message: 'Trade deleted successfully' };
+      const response = await axios.delete(`${BASE_URL}/trades/${tradeId}`);
+      console.log('Delete API Response:', response.data);
+      return response.data;
     } catch (error) {
       console.error('Error deleting trade:', error);
-      throw new Error(error.response?.data?.detail || 'Failed to delete trade');
+      throw new Error(JSON.stringify(error.response?.data?.detail) || 'Failed to delete trade');
     }
   };
   
