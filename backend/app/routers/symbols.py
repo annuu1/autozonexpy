@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from typing import List, Optional
+from typing import List, Optional, Dict
 from app.models.symbol_models import Symbol, SymbolCreate, SymbolUpdate
 from datetime import datetime
 import yfinance as yf
@@ -24,21 +24,37 @@ async def create_symbol(symbol_data: SymbolCreate):
     return symbol_dict
 
 #create multiple symbols
-@router.post("/batch", response_model=List[Symbol])
+@router.post("/batch", response_model=Dict[str, List])
 async def create_symbols(symbols_data: List[SymbolCreate]):
     collection = symbol_collection
-    
-    # Check if any symbol exists
-    existing_symbols = await collection.find({"symbol": {"$in": [symbol.symbol for symbol in symbols_data]}}).to_list(length=None)
-    if existing_symbols:
-        raise HTTPException(status_code=400, detail="Some symbols already exist")
-    
-    # Create new symbols
-    symbols_dict = [symbol.model_dump() for symbol in symbols_data]
+
+    # Extract symbol names from the incoming data
+    incoming_symbols = [symbol.symbol for symbol in symbols_data]
+
+    # Fetch existing symbols from the database
+    existing_symbols_cursor = await collection.find(
+        {"symbol": {"$in": incoming_symbols}}
+    ).to_list(length=None)
+    existing_symbols = {symbol["symbol"] for symbol in existing_symbols_cursor}
+
+    # Filter out symbols that already exist
+    new_symbols_data = [symbol for symbol in symbols_data if symbol.symbol not in existing_symbols]
+
+    if not new_symbols_data:
+        raise HTTPException(status_code=400, detail="All provided symbols already exist")
+
+    # Prepare documents for insertion
+    symbols_dict = [symbol.model_dump() for symbol in new_symbols_data]
     for symbol_dict in symbols_dict:
         symbol_dict["last_updated"] = datetime.now()
+
+    # Insert new symbols
     await collection.insert_many(symbols_dict)
-    return symbols_dict
+
+    return {
+        "inserted_symbols": [s["symbol"] for s in symbols_dict],
+        "skipped_symbols": list(existing_symbols)
+    }
 
 # Get all symbols with pagination and filtering
 @router.get("/", response_model=List[Symbol])
