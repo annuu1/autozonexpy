@@ -10,12 +10,13 @@ import ZoneCharts from "./components/ZoneCharts.jsx";
 import ZoneChartsTable from "./components/ZoneChartsTable.jsx";
 import ZoneChart from "./components/charts/ZoneChart.jsx";
 import TradesTable from "./components/tables/TradesTable.jsx";
+import AllZonesTable from "./components/tables/AllZonesTable.jsx";
 import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
   const [zones, setZones] = useState([]);
   const [error, setError] = useState(null);
-  
+
   // Shared state for multi-ticker zones and settings
   const [multiTickerZones, setMultiTickerZones] = useState([]);
   const [multiTickerSettings, setMultiTickerSettings] = useState(null);
@@ -30,7 +31,7 @@ function App() {
     const allZones = newZones ? Object.entries(newZones).flatMap(([ticker, zones]) =>
       zones.map((zone) => ({ ...zone, ticker }))
     ) : [];
-    
+
     setMultiTickerZones(allZones);
     setMultiTickerSettings(settings);
     setZones(allZones); // Also update the regular zones for backward compatibility
@@ -47,8 +48,8 @@ function App() {
 
           {/* Enhanced Navigation */}
           <div className="flex flex-wrap justify-center gap-4 mb-8">
-            <Link 
-              to="/demand-zones" 
+            <Link
+              to="/demand-zones"
               className="px-6 py-3 bg-white/80 backdrop-blur-sm text-blue-700 font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-white/90 transition-all duration-200 border border-blue-200"
             >
               Single Demand Zones
@@ -82,6 +83,12 @@ function App() {
               className="px-6 py-3 bg-white/80 backdrop-blur-sm text-amber-700 font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-white/90 transition-all duration-200 border border-amber-200"
             >
               Trades
+            </Link>
+            <Link
+              to="/all-zones"
+              className="px-6 py-3 bg-white/80 backdrop-blur-sm text-amber-700 font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-white/90 transition-all duration-200 border border-amber-200"
+            >
+              All Zones
             </Link>
           </div>
 
@@ -131,7 +138,7 @@ function App() {
               path="/zone-charts-table"
               element={
                 <div className="h-screen flex flex-col p-4">
-                  <ZoneChartsTable 
+                  <ZoneChartsTable
                     initialZones={multiTickerZones}
                     initialSettings={multiTickerSettings}
                     onZonesUpdate={setMultiTickerZones}
@@ -148,7 +155,7 @@ function App() {
                 </div>
               }
             />
-            
+
             <Route
               path="/trades"
               element={
@@ -156,6 +163,18 @@ function App() {
                   <h2 className="text-2xl font-bold mb-6 text-gray-800">Trades</h2>
                   <div className="h-[700px] w-full">
                     <TradesTable />
+                  </div>
+                </div>
+              }
+            />
+
+            <Route
+              path="/all-zones"
+              element={
+                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl border border-white/20">
+                  <h2 className="text-2xl font-bold mb-6 text-gray-800">All Zones</h2>
+                  <div className="h-[700px] w-full">
+                    <AllZonesTable />
                   </div>
                 </div>
               }

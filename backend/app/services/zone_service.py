@@ -111,13 +111,51 @@ async def get_zones_by_ticker(tickers: Optional[List[str]] = None, start_date: O
 #get all the zones list
 from app.models.zone_models import DemandZone
 
-async def get_all_zones(db_collection: AsyncIOMotorCollection = collection) -> List[Dict]:
+async def get_all_zones(
+    db_collection: AsyncIOMotorCollection = collection,
+    page: int = 1,
+    limit: int = 10,
+    sort_by: str = "timestamp",
+    sort_order: int = -1,
+    ticker: Optional[str] = None,
+    pattern: Optional[str] = None
+) -> Dict:
     try:
-        zones = await db_collection.find().to_list(length=None)
-        logger.info(f"Retrieved {len(zones)} zones from database")
-        # Serialize using the Pydantic model, ensuring ObjectId is converted to str
-        return [DemandZone(**zone).model_dump(by_alias=True) for zone in zones]
+        # Build query filters
+        query = {}
+        if ticker:
+            query["ticker"] = ticker.upper()
+        if pattern:
+            query["pattern"] = pattern.upper()
+            
+        # Get total count
+        total = await db_collection.count_documents(query)
+        
+        # Calculate skip and limit
+        skip = (page - 1) * limit
+        
+        # Execute query with pagination and sorting
+        cursor = db_collection.find(query)\
+            .sort(sort_by, sort_order)\
+            .skip(skip)\
+            .limit(limit)
+            
+        zones = await cursor.to_list(length=limit)
+        
+        logger.info(f"Retrieved {len(zones)} zones from database (page {page}, limit {limit})")
+        
+        # Calculate total pages
+        total_pages = (total + limit - 1) // limit
+        
+        return {
+            "data": [DemandZone(**zone).model_dump(by_alias=True) for zone in zones],
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "total_pages": total_pages
+        }
     except Exception as e:
         logger.error(f"Error in get_all_zones: {str(e)}")
+        raise
         raise
     

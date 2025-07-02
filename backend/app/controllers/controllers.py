@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from app.models.models import StockRequest, DemandZone, MultiStockRequest
 from app.services.services import fetch_stock_data, identify_demand_zones, identify_ltf_zones
 from app.services.zone_service import get_all_zones, get_zones_by_ticker, save_unique_zones
-from typing import List, Dict
+from typing import List, Dict, Optional
 from dateutil import parser
 import json
 from app.utils.ticker_loader import load_tickers_from_json
@@ -204,10 +204,23 @@ async def get_demand_zones_controller(request: GetZonesRequest) -> Dict[str, Lis
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 #controller to get the all zones
-async def get_all_zones_controller() -> List[Dict]:
+async def get_all_zones_controller(
+    page: int = 1,
+    limit: int = 10,
+    sort_by: str = "timestamp",
+    sort_order: int = -1,
+    ticker: Optional[str] = None,
+    pattern: Optional[str] = None
+) -> Dict:
     try:
-        zones = await get_all_zones()
-        return zones
+        return await get_all_zones(
+            page=page,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            ticker=ticker,
+            pattern=pattern
+        )
     except Exception as e:
         logger.error(f"Error retrieving all zones: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

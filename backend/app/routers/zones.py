@@ -25,9 +25,37 @@ async def get_demand_zones(request: GetZonesRequest):
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 @router.get("/all-zones")
-async def get_all_zones():
+async def get_all_zones(
+    page: int = 1,
+    limit: int = 10,
+    sort_by: str = "timestamp",
+    sort_order: int = -1,
+    ticker: Optional[str] = None,
+    pattern: Optional[str] = None
+):
+    """
+    Retrieve all trading zones with pagination and filtering.
+    
+    Args:
+        page: Page number (1-based)
+        limit: Number of items per page
+        sort_by: Field to sort by
+        sort_order: Sort order (1 for ascending, -1 for descending)
+        ticker: Filter by ticker symbol
+        pattern: Filter by pattern (DBR/RBR)
+        
+    Returns:
+        Dictionary containing paginated zones and metadata
+    """
     try:
-        return await get_all_zones_controller()
+        return await get_all_zones_controller(
+            page=page,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            ticker=ticker,
+            pattern=pattern
+        )
     except HTTPException as e:
         raise e
     except Exception as e:
