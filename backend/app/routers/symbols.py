@@ -4,6 +4,7 @@ from app.models.symbol_models import Symbol, SymbolCreate, SymbolUpdate
 from datetime import datetime
 import yfinance as yf
 from app.db.database import symbol_collection
+from app.controllers.controllers import load_tickers_from_json
 
 router = APIRouter(prefix="/symbols", tags=["symbols"])
 
@@ -28,6 +29,12 @@ async def create_symbol(symbol_data: SymbolCreate):
 async def create_symbols(symbols_data: List[SymbolCreate]):
     collection = symbol_collection
 
+    if not symbols_data:
+        print("No symbols provided")
+        #load ticker and make its  Symbol model
+        tickers = load_tickers_from_json()
+        symbols_data = [Symbol(symbol=ticker) for ticker in tickers]
+    print(symbols_data)
     # Extract symbol names from the incoming data
     incoming_symbols = [symbol.symbol for symbol in symbols_data]
 
@@ -36,9 +43,11 @@ async def create_symbols(symbols_data: List[SymbolCreate]):
         {"symbol": {"$in": incoming_symbols}}
     ).to_list(length=None)
     existing_symbols = {symbol["symbol"] for symbol in existing_symbols_cursor}
+    print("existing_symbols", existing_symbols)
 
     # Filter out symbols that already exist
     new_symbols_data = [symbol for symbol in symbols_data if symbol.symbol not in existing_symbols]
+    print("new_symbols_data", new_symbols_data)
 
     if not new_symbols_data:
         raise HTTPException(status_code=400, detail="All provided symbols already exist")
