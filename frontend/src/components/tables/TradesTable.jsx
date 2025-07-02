@@ -42,9 +42,10 @@ const TradesTable = () => {
   const [modalMode, setModalMode] = useState('edit'); // 'edit' or 'add'
   const [searchParams, setSearchParams] = useState({ symbol: '', status: '' });
   const [percentDiff, setPercentDiff] = useState('');
+  const [priceType, setPriceType] = useState('ltp'); // 'ltp' or 'day_low'
   const [targetRatio, setTargetRatio] = useState('1:2');
   const [formErrors, setFormErrors] = useState({});
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Debounced search update for symbol and status
   const debouncedSearch = debounce((params) => {
@@ -76,7 +77,7 @@ const TradesTable = () => {
       }
     };
     fetchTrades();
-  }, [currentPage, sortConfig, searchParams]);
+  }, [currentPage, sortConfig, searchParams, itemsPerPage]);
 
   // Fetch real-time data
   useEffect(() => {
@@ -104,11 +105,11 @@ const TradesTable = () => {
     }
   }, [trades]);
 
-  // Calculate percent difference between LTP and entry_price
+  // Calculate percent difference between price (LTP or Day's Low) and entry_price
   const calculatePercentDiff = (trade) => {
-    const ltp = realtimeData[trade.symbol]?.ltp;
-    if (!ltp || !trade.entry_price) return 'N/A';
-    return ((ltp - trade.entry_price) / trade.entry_price * 100).toFixed(2);
+    const price = realtimeData[trade.symbol]?.[priceType];
+    if (!price || !trade.entry_price) return 'N/A';
+    return ((price - trade.entry_price) / trade.entry_price * 100).toFixed(2);
   };
 
   // Filter trades by percent difference
@@ -330,6 +331,31 @@ const TradesTable = () => {
     setFormErrors(validateTrade(trade));
   };
 
+  const handleItemsPerPageChange = (e) => {
+    const newItemsPerPage = parseInt(e.target.value, 10);
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
+  const renderRowsPerPageSelector = () => (
+    <div className="flex items-center space-x-2">
+      <span className="text-sm text-gray-600">Rows per page:</span>
+      <select
+        value={itemsPerPage}
+        onChange={handleItemsPerPageChange}
+        className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value={5}>5</option>
+        <option value={10}>10</option>
+        <option value={25}>25</option>
+        <option value={50}>50</option>
+        <option value={100}>100</option>
+        <option value={200}>200</option>
+        <option value={500}>500</option>
+      </select>
+    </div>
+  );
+
   const renderSortIcon = (key) => {
     if (sortConfig.key !== key) return null;
     return sortConfig.direction === 'asc' ? (
@@ -376,7 +402,7 @@ const TradesTable = () => {
           step="1"
           value={trade?.stop_loss || ''}
           onChange={(e) => handleFormChange('stop_loss', e.target.value, isEditMode)}
-          className={`px-3 py-1.5 border(interval) ${formErrors.stop_loss ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
+          className={`px-3 py-1.5 border ${formErrors.stop_loss ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
           placeholder="0"
           required
         />
@@ -487,17 +513,26 @@ const TradesTable = () => {
                   <option value="CLOSED">CLOSED</option>
                 </select>
               </div>
-              <div className="flex flex-col text-xs w-[150px]">
+              <div className="flex flex-col text-xs w-[200px]">
                 <label className="text-gray-600 font-medium mb-1">Max % Difference</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  name="percent_diff"
-                  value={percentDiff}
-                  onChange={handleSearchChange}
-                  placeholder="e.g., 1 for ≤1%"
-                  className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={percentDiff}
+                    onChange={(e) => setPercentDiff(e.target.value)}
+                    placeholder="Filter by %"
+                    className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+                  />
+                  <select
+                    value={priceType}
+                    onChange={(e) => setPriceType(e.target.value)}
+                    className="px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+                  >
+                    <option value="ltp">LTP</option>
+                    <option value="day_low">Day's Low</option>
+                  </select>
+                </div>
               </div>
             </div>
             <button
@@ -641,10 +676,13 @@ const TradesTable = () => {
                     ))}
                   </tbody>
                 </table>
-                <div className="flex justify-between items-center mt-4 px-6 py-3 bg-gray-50/80">
-                  <div className="text-sm text-gray-700">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-                    {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} trades
+                <div className="flex flex-col sm:flex-row justify-between items-center mt-4 space-y-2 sm:space-y-0">
+                  {renderRowsPerPageSelector()}
+                  <div className="text-sm text-gray-600">
+                    Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalCount)} to {Math.min(
+                      currentPage * itemsPerPage,
+                      totalCount
+                    )} of {totalCount} entries
                   </div>
                   <div className="flex space-x-2">
                     <button
