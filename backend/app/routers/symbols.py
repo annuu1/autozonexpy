@@ -5,6 +5,8 @@ from datetime import datetime
 import yfinance as yf
 from app.db.database import symbol_collection
 from app.controllers.controllers import load_tickers_from_json
+from pymongo import UpdateOne
+import asyncio
 
 router = APIRouter(prefix="/symbols", tags=["symbols"])
 
@@ -117,34 +119,47 @@ async def delete_symbol(symbol: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Symbol not found")
     return {"detail": "Symbol deleted"}
-
-# Update LTP for all symbols
 @router.post("/update-ltp/")
 async def update_all_ltp():
     try:
         collection = symbol_collection
-        
+
         # Get all symbols
         cursor = collection.find()
         symbols = await cursor.to_list(length=None)
         if not symbols:
             return {"detail": "No symbols found"}
-        
-        # Prepare tickers for yfinance
-        tickers = [f"{symbol['symbol']}.NS" for symbol in symbols]
-        yf_tickers = yf.Tickers(" ".join(tickers))
-        
-        # Update LTP and last_updated
-        for symbol in symbols:
-            ticker = yf_tickers.tickers.get(f"{symbol['symbol']}.NS")
-            if ticker:
-                ltp = ticker.info.get("regularMarketPrice")
-                if ltp:
-                    await collection.update_one(
-                        {"symbol": symbol["symbol"]},
-                        {"$set": {"ltp": ltp, "last_updated": datetime.now()}}
-                    )
-        
-        return {"detail": f"Updated LTP for {len(symbols)} symbols"}
+
+        # Prepare tickers for yfinance in chunks
+        ticker_chunks = [symbols[i:i + 300] for i in range(0, len(symbols), 300)]
+
+        total_updates = 0
+
+        for chunk in ticker_chunks:
+            tickers_str = " ".join([f"{symbol['symbol']}.NS" for symbol in chunk])
+            yf_tickers = yf.Tickers(tickers_str)
+
+            async def update_symbol(symbol):
+                try:
+                    ticker = yf_tickers.tickers.get(f"{symbol['symbol']}.NS")
+                    if ticker:
+                        ltp = ticker.info.get("regularMarketPrice")
+                        if ltp:
+                            await collection.update_one(
+                                {"symbol": symbol["symbol"]},
+                                {"$set": {"ltp": ltp, "last_updated": datetime.now()}}
+                            )
+                            return 1  # Successful update
+                except Exception as e:
+                    print(f"Failed to update {symbol['symbol']}: {e}")
+                return 0  # Failed or skipped
+
+            # Run updates concurrently for this chunk with asyncio.gather
+            updates = await asyncio.gather(*(update_symbol(symbol) for symbol in chunk))
+            total_updates += sum(updates)
+
+        return {"detail": f"Updated LTP for {total_updates} symbols"}
+
     except Exception as e:
+        print(f"Error in update_all_ltp: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update LTP: {str(e)}")
