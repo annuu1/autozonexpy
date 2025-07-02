@@ -1,8 +1,8 @@
 import React, { useEffect, useState, Component, useCallback } from 'react';
-import { getAllZones } from '../../services/zones';
+import { getAllZones, deleteZone } from '../../services/zones';
 import { getRealtimeData } from '../../services/api';
 import Card from '../ui/Card';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { debounce } from 'lodash';
@@ -40,6 +40,7 @@ const AllZonesTable = () => {
   const [realtimeLoading, setRealtimeLoading] = useState(false);
   const [percentDiff, setPercentDiff] = useState('');
   const [priceType, setPriceType] = useState('ltp'); // 'ltp' or 'day_low'
+  const [zoneToDelete, setZoneToDelete] = useState(null);
 
   // Debounced search update for ticker and pattern
   const debouncedSearch = useCallback(
@@ -142,6 +143,30 @@ const AllZonesTable = () => {
     const newItemsPerPage = parseInt(e.target.value, 10);
     setItemsPerPage(newItemsPerPage);
     setCurrentPage(1);
+  };
+
+  const handleDeleteClick = (zone) => {
+    setZoneToDelete(zone);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!zoneToDelete) return;
+    
+    try {
+      await deleteZone(zoneToDelete.zone_id);
+      toast.success('Zone deleted successfully');
+      // Refresh the zones list
+      await fetchZones();
+    } catch (error) {
+      console.error('Error deleting zone:', error);
+      toast.error(error.response?.data?.detail || 'Failed to delete zone');
+    } finally {
+      setZoneToDelete(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setZoneToDelete(null);
   };
 
   const renderSortIcon = (key) => {
@@ -349,6 +374,9 @@ const AllZonesTable = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         % Difference
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -403,6 +431,15 @@ const AllZonesTable = () => {
                             <span className="text-gray-400 text-xs">N/A</span>
                           )}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            onClick={() => handleDeleteClick(zone)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Delete zone"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -416,6 +453,32 @@ const AllZonesTable = () => {
           </div>
         </div>
         <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} closeOnClick pauseOnHover />
+        
+        {/* Delete Confirmation Modal */}
+        {zoneToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Confirm Deletion</h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete the zone for {zoneToDelete.ticker}? This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleCancelDelete}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
     </ErrorBoundary>
   );

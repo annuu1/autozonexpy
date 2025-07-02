@@ -147,15 +147,35 @@ async def get_all_zones(
         # Calculate total pages
         total_pages = (total + limit - 1) // limit
         
+        zones_data = [DemandZone(**zone).model_dump(by_alias=True) for zone in zones]
+        total_count = total
+        
         return {
-            "data": [DemandZone(**zone).model_dump(by_alias=True) for zone in zones],
-            "total": total,
+            "data": zones_data,
+            "total": total_count,
             "page": page,
-            "limit": limit,
             "total_pages": total_pages
         }
     except Exception as e:
         logger.error(f"Error in get_all_zones: {str(e)}")
         raise
-        raise
+
+async def delete_zone(zone_id: str, db_collection: AsyncIOMotorCollection = collection):
+    """
+    Delete a zone by its ID.
     
+    Args:
+        zone_id: The ID of the zone to delete
+        db_collection: MongoDB collection (defaults to app.db.database.collection)
+        
+    Returns:
+        DeleteResult from MongoDB
+    """
+    try:
+        logger.info(f"Deleting zone with ID: {zone_id}")
+        result = await db_collection.delete_one({"zone_id": zone_id})
+        logger.info(f"Delete result for zone {zone_id}: {result.raw_result}")
+        return result
+    except Exception as e:
+        logger.error(f"Error deleting zone {zone_id}: {str(e)}")
+        raise

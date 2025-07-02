@@ -31,3 +31,15 @@ export const getAllZones = async (currentPage = 1, itemsPerPage = 10, sortBy = '
         throw error;
     }
 };
+
+export const deleteZone = async (zoneId) => {
+    try {
+        console.log('Deleting zone with ID:', zoneId);
+        const response = await axios.delete(`${BASE_URL}/zones/${zoneId}`);
+        console.log('Delete zone response:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting zone:', error);
+        throw error;
+    }
+};

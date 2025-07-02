@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Optional
 from pydantic import BaseModel
-from app.controllers.controllers import get_all_zones_controller, get_demand_zones_controller
+from app.controllers.controllers import get_all_zones_controller, get_demand_zones_controller, delete_zone_controller
 from app.models.models import GetZonesRequest
 
 router = APIRouter(prefix="/zones", tags=["zones"])
@@ -56,6 +56,24 @@ async def get_all_zones(
             ticker=ticker,
             pattern=pattern
         )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+@router.delete("/{zone_id}")
+async def delete_zone(zone_id: str):
+    """
+    Delete a zone by its ID.
+    
+    Args:
+        zone_id: The ID of the zone to delete
+        
+    Returns:
+        Success message if deleted, 404 if not found
+    """
+    try:
+        return await delete_zone_controller(zone_id)
     except HTTPException as e:
         raise e
     except Exception as e:

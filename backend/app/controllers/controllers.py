@@ -224,3 +224,26 @@ async def get_all_zones_controller(
     except Exception as e:
         logger.error(f"Error retrieving all zones: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+async def delete_zone_controller(zone_id: str) -> dict:
+    """
+    Delete a zone by its ID.
+    
+    Args:
+        zone_id: The ID of the zone to delete
+        
+    Returns:
+        Dictionary with success message if deleted, raises HTTPException if not found
+    """
+    try:
+        from app.services.zone_service import delete_zone
+        result = await delete_zone(zone_id)
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail=f"Zone with ID {zone_id} not found")
+        return {"message": f"Zone {zone_id} deleted successfully"}
+    except Exception as e:
+        logger.error(f"Error deleting zone {zone_id}: {str(e)}")
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Error deleting zone: {str(e)}")
