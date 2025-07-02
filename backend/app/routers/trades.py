@@ -44,6 +44,23 @@ async def create_trade(trade: TradeCreate):
     except HTTPException as e:
         raise e
     except Exception as e:
+        logger.error(f"Error creating trade: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+# Get a trade by symbol
+@router.get("/symbol/{symbol}")
+async def get_trade_by_symbol(symbol: str):
+    try:
+        # Get the trades by symbol case insensitive
+        trades = []
+        async for trade in trade_collection.find({"symbol": {"$regex": symbol, "$options": "i"}}).limit(100):
+            trade["_id"] = str(trade["_id"])  # Convert ObjectId to string
+            trades.append(trade)
+        return trades
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching trades by symbol {symbol}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 # Get a single trade

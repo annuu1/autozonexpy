@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Settings, Bell } from 'lucide-react'
+import { Settings, Bell, AlarmCheckIcon } from 'lucide-react'
 import ChartContainer from './ChartContainer'
 import ZoneLegend from './ZoneLegend'
 import ZoneDetails from './ZoneDetails'
@@ -7,6 +7,8 @@ import CollapsibleSection from '../ui/CollapsibleSection'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import AddTrade from '../modals/AddTrade'
+import TradesModal from '../modals/TradesModal'
+import { getTradeBySymbol } from '../../services/api'
 
 const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones = [] }) => {
   const [higherInterval, setHigherInterval] = useState('1wk')
@@ -26,6 +28,20 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
     { value: '15m', label: '15 Minutes' },
     { value: '5m', label: '5 Minutes' },
   ]
+
+  const [tradesList, setTradesList] = React.useState([]);
+  React.useEffect(() => {
+    const fetchTrades = async () => {
+      try {
+        const trades = await getTradeBySymbol(ticker);
+        console.log("trades", trades);
+        setTradesList(trades);
+      } catch (error) {
+        console.error('Error fetching trades:', error);
+      }
+    };
+    fetchTrades();
+  }, [ticker]);
 
   const normalizedTicker = ticker?.toUpperCase().endsWith('.NS')
     ? ticker.toUpperCase()
@@ -50,37 +66,61 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
   const handleBellClick = () => {
     setIsTradeModalOpen(true)
   }
+  const handleTradeModalOpen = () => {
+    setIsTradeModalOpen(true)
+  }
 
   const handleTradeModalClose = () => {
     setIsTradeModalOpen(false)
   }
 
   const trades = () => [
-  {
-    entry_price: parseFloat(higherTimeframeZone.proximal_line).toFixed(2),
-    sl: parseFloat(higherTimeframeZone.distal_line).toFixed(2),
-    target:
-      parseFloat(higherTimeframeZone.proximal_line +
-      (higherTimeframeZone.proximal_line - higherTimeframeZone.distal_line) * 2).toFixed(2),
-  },
-  ...lowerTimeframeZones.map((zone) => ({
-    entry_price: parseFloat(zone.proximal_line).toFixed(2),
-    sl: parseFloat(zone.distal_line).toFixed(2),
-    target: parseFloat(zone.proximal_line).toFixed(2) + (parseFloat(zone.proximal_line).toFixed(2) - parseFloat(zone.distal_line).toFixed(2)) * 2,
-  })),
-];
+    {
+      entry_price: parseFloat(higherTimeframeZone.proximal_line).toFixed(2),
+      sl: parseFloat(higherTimeframeZone.distal_line).toFixed(2),
+      target:
+        parseFloat(higherTimeframeZone.proximal_line +
+          (higherTimeframeZone.proximal_line - higherTimeframeZone.distal_line) * 2).toFixed(2),
+    },
+    ...lowerTimeframeZones.map((zone) => ({
+      entry_price: parseFloat(zone.proximal_line).toFixed(2),
+      sl: parseFloat(zone.distal_line).toFixed(2),
+      target: parseFloat(zone.proximal_line).toFixed(2) + (parseFloat(zone.proximal_line).toFixed(2) - parseFloat(zone.distal_line).toFixed(2)) * 2,
+    })),
+  ];
 
   return (
     <div className="space-y-4 h-full">
-      <AddTrade ticker={normalizedTicker.split('.NS')[0]} 
-      trades = {trades()} 
-      isOpen={isTradeModalOpen} onClose={handleTradeModalClose} />
+      <AddTrade ticker={normalizedTicker.split('.NS')[0]}
+        trades={trades()}
+        isOpen={isTradeModalOpen} onClose={handleTradeModalClose} />
+      <TradesModal isOpen={isTradeModalOpen} onClose={handleTradeModalClose} ticker={normalizedTicker.split('.NS')[0]} trades={tradesList} />
       {/* Zone Summary Header */}
       <Card>
         <Card.Content className="!p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 style={{display: 'inline'}} className="text-lg font-semibold text-gray-800">{normalizedTicker.split('.NS')[0]} <Bell style={{display: 'inline', cursor: 'pointer', color: 'green'}} size={16} onClick={handleBellClick} /></h3>
+              <h3 style={{ display: 'inline' }} className="text-lg font-semibold text-gray-800">
+                {normalizedTicker.split('.NS')[0]}
+              </h3>
+              <div className='inline-flex items-center gap-2 ml-2'>
+                <Bell style={{ cursor: 'pointer', color: 'green' }}
+                  size={16} onClick={handleBellClick} />
+
+                <AlarmCheckIcon style={{ cursor: 'pointer', color: 'green' }}
+                  size={16} onClick={handleTradeModalOpen} />
+                {tradesList.length > 0 && (
+                  <sup className="bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center ml-[-8px]">
+                    {tradesList.length}
+                  </sup>
+                )}
+                {/* show the last created date of the last trade */}
+                {tradesList.length > 0 && (
+                  <span className="text-xs text-gray-600 ml-2">
+                    last trade on : {tradesList[tradesList.length - 1].created_at.split('T')[0]}
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                 <span className={`px-2 py-1 rounded-full text-xs font-semibold ${higherTimeframeZone.pattern === 'RBR' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
@@ -90,7 +130,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
                 <span>D: {higherTimeframeZone.distal_line.toFixed(2)}</span>
                 <span>Score: {higherTimeframeZone.trade_score.toFixed(1)}</span>
                 <span className={`font-medium ${higherTimeframeZone.freshness === 3 ? 'text-green-600' :
-                    higherTimeframeZone.freshness === 1.5 ? 'text-yellow-600' : 'text-red-600'
+                  higherTimeframeZone.freshness === 1.5 ? 'text-yellow-600' : 'text-red-600'
                   }`}>
                   F: {higherTimeframeZone.freshness}
                 </span>

@@ -2,7 +2,7 @@ import React, { useEffect, useState, Component } from 'react';
 import { getTrades, updateTrade, deleteTrade, toggleTradeVerified, addTrade, getRealtimeData } from '../../services/api';
 import Card from '../ui/Card';
 import Modal from '../ui/Modal';
-import { RefreshCw, PlusCircle, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { RefreshCw, PlusCircle, Edit, Trash2, CheckCircle, XCircle, AlarmCheckIcon } from 'lucide-react';
 import { ChevronDown } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';

@@ -103,6 +103,17 @@ export const getTrades = async (page = 1, limit = 10, sortBy = 'created_at', sor
       throw new Error(error.response?.data?.detail || 'Failed to fetch trades');
     }
   };
+  //get a trade by symbol
+  export const getTradeBySymbol = async (symbol) => {
+    try {
+      console.log(`Fetching trade by symbol ${symbol}`);
+      const response = await axios.get(`${BASE_URL}/trades/symbol/${symbol}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching trade by symbol:', error);
+      throw new Error(error.response?.data?.detail || 'Failed to fetch trade by symbol');
+    }
+  };
 
   export const updateTrade = async (tradeId, tradeData) => {
     try {
