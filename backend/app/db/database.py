@@ -16,8 +16,11 @@ db = client[DATABASE_NAME]
 #collections
 collection = db[COLLECTION_NAME]
 trade_collection = db['trades']
+symbol_collection = db['symbols']
 
 async def init_db():
     """Initialize MongoDB with a unique index on zone_id"""
     index = IndexModel([("zone_id", ASCENDING)], unique=True)
     await collection.create_indexes([index])
+    index = IndexModel([("symbol", ASCENDING)], unique=True)
+    await symbol_collection.create_indexes([index])

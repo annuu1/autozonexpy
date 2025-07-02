@@ -10,6 +10,8 @@ from app.routers.zones import router as zones_router
 from app.routers.trades import router as trade_router
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routers import symbols
+
 # Configure logging at the start of the module or main app
 logging.basicConfig(
     level=logging.INFO,  # Capture INFO and above (INFO, WARNING, ERROR)
@@ -28,6 +30,7 @@ app = FastAPI(title="GTF Demand Zone Finder API", version="1.0.0")
 app.include_router(router)
 app.include_router(zones_router)
 app.include_router(trade_router)
+app.include_router(symbols.router)
 
 app.add_middleware(
     CORSMiddleware,
