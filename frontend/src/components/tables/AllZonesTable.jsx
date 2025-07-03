@@ -136,7 +136,7 @@ const AllZonesTable = () => {
 
   useEffect(() => {
     if (zones.length > 0) {
-      fetchRealtimeData();
+      // fetchRealtimeData();
     }
   }, [zones, fetchRealtimeData]);
 
