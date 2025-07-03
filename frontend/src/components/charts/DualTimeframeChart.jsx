@@ -128,6 +128,15 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
                   <span className="text-xs text-gray-600 ml-2">
                     last trade on : {tradesList[tradesList.length - 1].created_at.split('T')[0]}
                   </span>
+
+                )}
+                {/* list of the entry_prices */}
+                {tradesList.length > 0 && (
+                  <span className="text-xs text-gray-600 ml-2">
+                    entry prices : {tradesList.map((trade, index) => (
+                      trade.entry_price + ', '
+                    ))}
+                  </span>
                 )}
               </div>
               <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
