@@ -62,6 +62,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
   }
 
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false)
+  const [isTradesListModalOpen, setIsTradesListModalOpen] = useState(false)
 
   const handleBellClick = () => {
     setIsTradeModalOpen(true)
@@ -72,6 +73,14 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
 
   const handleTradeModalClose = () => {
     setIsTradeModalOpen(false)
+  }
+
+  const handleTradesListModalClose = () => {
+    setIsTradesListModalOpen(false)
+  }
+
+  const handleTradesListModalOpen = () => {
+    setIsTradesListModalOpen(true)
   }
 
   const trades = () => [
@@ -94,7 +103,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
       <AddTrade ticker={normalizedTicker.split('.NS')[0]}
         trades={trades()}
         isOpen={isTradeModalOpen} onClose={handleTradeModalClose} />
-      <TradesModal isOpen={isTradeModalOpen} onClose={handleTradeModalClose} ticker={normalizedTicker.split('.NS')[0]} trades={tradesList} />
+      <TradesModal OnClick={handleTradesListModalOpen} isOpen={isTradesListModalOpen} onClose={handleTradesListModalClose} ticker={normalizedTicker.split('.NS')[0]} trades={tradesList} />
       {/* Zone Summary Header */}
       <Card>
         <Card.Content className="!p-4">
@@ -108,7 +117,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
                   size={16} onClick={handleBellClick} />
 
                 <AlarmCheckIcon style={{ cursor: 'pointer', color: 'green' }}
-                  size={16} onClick={handleTradeModalOpen} />
+                  size={16} onClick={handleTradesListModalOpen} />
                 {tradesList.length > 0 && (
                   <sup className="bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center ml-[-8px]">
                     {tradesList.length}
