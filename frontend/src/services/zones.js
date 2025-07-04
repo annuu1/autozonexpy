@@ -2,7 +2,7 @@ import axios from "axios";
 
 const BASE_URL = "http://localhost:8000"
 
-export const getAllZones = async (currentPage = 1, itemsPerPage = 10, sortBy = 'timestamp', sortOrder = 'desc', ticker = '', pattern = '') => {
+export const getAllZones = async (currentPage = 1, itemsPerPage = 10, sortBy = 'timestamp', sortOrder = 'desc', ticker = '', pattern = '', timeframe = '') => {
     try {
         const params = {
             page: currentPage,
@@ -14,6 +14,7 @@ export const getAllZones = async (currentPage = 1, itemsPerPage = 10, sortBy = '
         // Add filters if provided
         if (ticker) params.ticker = ticker;
         if (pattern) params.pattern = pattern;
+        if (timeframe) params.timeframe = timeframe;
 
         console.log('Fetching zones with params:', params);
         const response = await axios.get(`${BASE_URL}/zones/all-zones`, { params });

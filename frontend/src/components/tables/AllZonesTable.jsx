@@ -34,7 +34,7 @@ const AllZonesTable = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [sortConfig, setSortConfig] = useState({ key: 'trade_score', direction: 'desc' });
-  const [searchParams, setSearchParams] = useState({ ticker: '', pattern: '' });
+  const [searchParams, setSearchParams] = useState({ ticker: '', pattern: '', timeframe: '' });
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [realtimeData, setRealtimeData] = useState({});
   const [realtimeLoading, setRealtimeLoading] = useState(false);
@@ -44,7 +44,7 @@ const AllZonesTable = () => {
 
   // Debounced search update for ticker and pattern
   const debouncedSearch = useCallback(debounce((params) => {
-    setSearchParams(params);
+    setSearchParams(prev => ({ ...prev, ...params }));
     setCurrentPage(1);
   }, 300), []);
 
@@ -53,7 +53,7 @@ const AllZonesTable = () => {
     try {
       setLoading(true);
       const response = await getAllZones(
-        currentPage, itemsPerPage, sortConfig.key, sortConfig.direction, searchParams.ticker, searchParams.pattern
+        currentPage, itemsPerPage, sortConfig.key, sortConfig.direction, searchParams.ticker, searchParams.pattern, searchParams.timeframe
       );
       setZones(response.data || []);
       setTotalPages(response.total_pages || 1);
@@ -273,6 +273,20 @@ const AllZonesTable = () => {
     </div>
   );
 
+  const timeframeOptions = [
+    { value: '', label: 'All Timeframes' },
+    { value: '1d', label: '1 Day' },
+    { value: '4h', label: '4 Hours' },
+    { value: '1h', label: '1 Hour' },
+    { value: '15m', label: '15 Minutes' },
+    { value: '5m', label: '5 Minutes' },
+  ];
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    debouncedSearch({ [name]: value });
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -305,54 +319,73 @@ const AllZonesTable = () => {
       <Card>
         <div className="p-4">
           <div className="flex justify-between items-center mb-4">
-            <div className="flex flex-wrap gap-4">
-              <div className="flex flex-col text-xs w-[200px]">
-                <label className="text-gray-600 font-medium mb-1">Search Ticker</label>
-                <input
-                  type="text"
-                  name="ticker"
-                  value={searchParams.ticker}
-                  onChange={handleSearchChange}
-                  placeholder="Enter ticker..."
-                  className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-                />
-              </div>
-              <div className="flex flex-col text-xs w-[150px]">
-                <label className="text-gray-600 font-medium mb-1">Pattern</label>
-                <select
-                  name="pattern"
-                  value={searchParams.pattern}
-                  onChange={handleSearchChange}
-                  className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-                >
-                  <option value="">All</option>
-                  <option value="DBR">DBR</option>
-                  <option value="RBR">RBR</option>
-                </select>
-              </div>
-              <div className="flex flex-col text-xs w-[200px]">
-                <label className="text-gray-600 font-medium mb-1">Max % Difference</label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={percentDiff}
-                    onChange={(e) => setPercentDiff(e.target.value)}
-                    placeholder="Filter by %"
-                    className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-                  />
-                  <select
-                    value={priceType}
-                    onChange={(e) => setPriceType(e.target.value)}
-                    className="px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-                  >
-                    <option value="ltp">LTP</option>
-                    <option value="day_low">Day's Low</option>
-                  </select>
-                  <div className="flex flex-wrap gap-4">{renderControls()}</div>
-                </div>
-              </div>
-            </div>
+            <div className="flex flex-wrap gap-4 mb-4">
+  <div className="flex flex-col text-xs w-[200px]">
+    <label className="text-gray-600 font-medium mb-1">Ticker</label>
+    <input
+      type="text"
+      name="ticker"
+      placeholder="Filter by ticker..."
+      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+      onChange={handleFilterChange}
+      value={searchParams.ticker}
+    />
+  </div>
+  <div className="flex flex-col text-xs w-[200px]">
+    <label className="text-gray-600 font-medium mb-1">Pattern</label>
+    <select
+      name="pattern"
+      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+      onChange={handleFilterChange}
+      value={searchParams.pattern}
+    >
+      <option value="">All Patterns</option>
+      <option value="DBR">DBR</option>
+      <option value="RBR">RBR</option>
+    </select>
+  </div>
+  <div className="flex flex-col text-xs w-[200px]">
+    <label className="text-gray-600 font-medium mb-1">Timeframe</label>
+    <select
+      name="timeframe"
+      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+      onChange={handleFilterChange}
+      value={searchParams.timeframe}
+    >
+      <option value="">Select Timeframe</option>
+      <option value="3mo">3 Months</option>
+      <option value="1mo">1 Month</option>
+      <option value="1wk">1 Week</option>
+      <option value="1d">1 Day</option>
+      <option value="1h">1 Hour</option>
+      <option value="15m">15 Minutes</option>
+      <option value="5m">5 Minutes</option>
+    </select>
+  </div>
+  <div className="flex flex-col text-xs w-[200px]">
+    <label className="text-gray-600 font-medium mb-1">Max % Difference</label>
+    <div className="flex gap-2">
+      <input
+        type="number"
+        step="0.1"
+        value={percentDiff}
+        onChange={(e) => setPercentDiff(e.target.value)}
+        placeholder="Filter by %"
+        className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+      />
+      <select
+        value={priceType}
+        onChange={(e) => setPriceType(e.target.value)}
+        className="px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+      >
+        <option value="ltp">LTP</option>
+        <option value="day_low">Day's Low</option>
+      </select>
+      <div className="flex flex-wrap gap-4">{renderControls()}</div>
+    </div>
+    
+  </div>
+</div>
           </div>
           <div className="overflow-x-auto">
             {filteredZones.length === 0 ? (

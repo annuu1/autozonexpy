@@ -31,7 +31,8 @@ async def get_all_zones(
     sort_by: str = "timestamp",
     sort_order: int = -1,
     ticker: Optional[str] = None,
-    pattern: Optional[str] = None
+    pattern: Optional[str] = None,
+    timeframe: Optional[str] = None
 ):
     """
     Retrieve all trading zones with pagination and filtering.
@@ -43,6 +44,7 @@ async def get_all_zones(
         sort_order: Sort order (1 for ascending, -1 for descending)
         ticker: Filter by ticker symbol
         pattern: Filter by pattern (DBR/RBR)
+        timeframe: Filter by timeframe (e.g., '1d', '4h', '15m')
         
     Returns:
         Dictionary containing paginated zones and metadata
@@ -54,7 +56,8 @@ async def get_all_zones(
             sort_by=sort_by,
             sort_order=sort_order,
             ticker=ticker,
-            pattern=pattern
+            pattern=pattern,
+            timeframe=timeframe
         )
     except HTTPException as e:
         raise e

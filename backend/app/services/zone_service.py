@@ -118,7 +118,8 @@ async def get_all_zones(
     sort_by: str = "timestamp",
     sort_order: int = -1,
     ticker: Optional[str] = None,
-    pattern: Optional[str] = None
+    pattern: Optional[str] = None,
+    timeframe: Optional[str] = None
 ) -> Dict:
     try:
         # Build query filters
@@ -127,6 +128,9 @@ async def get_all_zones(
             query["ticker"] = {"$regex": ticker, "$options": "i"}
         if pattern:
             query["pattern"] = pattern.upper()
+        if timeframe:
+            # Match if the timeframe is in the timeframes array
+            query["timeframes"] = timeframe.lower()
             
         # Get total count
         total = await db_collection.count_documents(query)

@@ -210,7 +210,8 @@ async def get_all_zones_controller(
     sort_by: str = "timestamp",
     sort_order: int = -1,
     ticker: Optional[str] = None,
-    pattern: Optional[str] = None
+    pattern: Optional[str] = None,
+    timeframe: Optional[str] = None
 ) -> Dict:
     try:
         return await get_all_zones(
@@ -218,8 +219,9 @@ async def get_all_zones_controller(
             limit=limit,
             sort_by=sort_by,
             sort_order=sort_order,
-            ticker=ticker,
-            pattern=pattern
+ticker=ticker,
+            pattern=pattern,
+            timeframe=timeframe
         )
     except Exception as e:
         logger.error(f"Error retrieving all zones: {str(e)}")
