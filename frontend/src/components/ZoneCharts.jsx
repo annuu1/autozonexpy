@@ -10,6 +10,7 @@ const ZoneCharts = () => {
   const [error, setError] = useState(null)
 
   const intervals = [
+    { value: '3mo', label: 'Quarterly' },
     { value: '1mo', label: 'Monthly' },
     { value: '1wk', label: 'Weekly' },
     { value: '1d', label: 'Daily' },
@@ -27,6 +28,8 @@ const ZoneCharts = () => {
   // Get appropriate lower timeframe based on higher timeframe
   const getLowerTimeframe = (higherInterval) => {
     switch (higherInterval) {
+      case '3mo':
+        return '1mo'
       case '1mo':
         return '1wk'
       case '1wk':
@@ -52,6 +55,9 @@ const ZoneCharts = () => {
     let startDate = new Date()
     
     switch (intervalValue) {
+      case '3mo':
+        startDate.setFullYear(endDate.getFullYear() - 10) // 10 years for monthly
+        break
       case '1mo':
         startDate.setFullYear(endDate.getFullYear() - 10) // 10 years for monthly
         break
@@ -111,10 +117,10 @@ const ZoneCharts = () => {
         ltf_legoutMinBodyPercent: 50,
         baseMaxBodyPercent: 50,
         ltf_baseMaxBodyPercent: 50,
-        minLeginMovement: 7,
-        ltf_minLeginMovement: 3,
-        minLegoutMovement: 7,
-        ltf_minLegoutMovement: 3,
+        minLeginMovement: 3,
+        ltf_minLeginMovement: 1,
+        minLegoutMovement: 5,
+        ltf_minLegoutMovement: 5,
         minBaseCandles: 1,
         maxBaseCandles: 5,
         detectLowerZones: true,
@@ -146,6 +152,8 @@ const ZoneCharts = () => {
 
   const getDataRangeInfo = (intervalValue) => {
     switch (intervalValue) {
+      case '3mo':
+        return '10 years of monthly data'
       case '1mo':
         return '10 years of monthly data'
       case '1wk':

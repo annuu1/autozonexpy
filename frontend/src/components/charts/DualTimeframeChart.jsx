@@ -15,6 +15,7 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
   const [lowerInterval, setLowerInterval] = useState('1d')
 
   const higherIntervals = [
+    {value: '3mo', label: 'Quaterly'},
     { value: '1mo', label: 'Monthly' },
     { value: '1wk', label: 'Weekly' },
     { value: '1d', label: 'Daily' },
@@ -22,6 +23,9 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
   ]
 
   const lowerIntervals = [
+    {value: '3mo', label: 'Quaterly'},
+    { value: '1mo', label: 'Monthly' },
+    { value: '1wk', label: 'Weekly' },
     { value: '1d', label: 'Daily' },
     { value: '1h', label: 'Hourly' },
     { value: '30m', label: '30 Minutes' },
@@ -212,7 +216,8 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
               <div>
                 <span className="font-medium">Higher TF ({higherInterval}):</span>
                 <span className="ml-2">
-                  {higherInterval === '1mo' ? '10 years' :
+                  {higherInterval === '3mo' ? '10 years' :
+                    higherInterval === '1mo' ? '10 years' :
                     higherInterval === '1wk' ? '5 years' :
                       higherInterval === '1d' ? '1 year' :
                         higherInterval === '1h' ? '30 days' : '1 year'}
@@ -221,7 +226,8 @@ const DualTimeframeChart = ({ ticker, higherTimeframeZone, lowerTimeframeZones =
               <div>
                 <span className="font-medium">Lower TF ({lowerInterval}):</span>
                 <span className="ml-2">
-                  {lowerInterval === '1mo' ? '10 years' :
+                  {lowerInterval === '3mo' ? '10 years' :
+                    lowerInterval === '1mo' ? '10 years' :
                     lowerInterval === '1wk' ? '5 years' :
                       lowerInterval === '1d' ? '1 year' :
                         lowerInterval === '1h' ? '30 days' :

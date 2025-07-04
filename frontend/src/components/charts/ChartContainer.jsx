@@ -25,6 +25,7 @@ const ChartContainer = ({
   const [currentEndDate, setCurrentEndDate] = useState(null)
 
   const intervals = [
+    { value: '3mo', label: 'Quarterly' },
     { value: '1mo', label: 'Monthly' },
     { value: '1wk', label: 'Weekly' },
     { value: '1d', label: 'Daily' },
@@ -40,6 +41,9 @@ const ChartContainer = ({
     let startDate = new Date()
     
     switch (intervalValue) {
+      case '3mo':
+        startDate.setFullYear(endDate.getFullYear() - 10) // 10 years for monthly
+        break
       case '1mo':
         startDate.setFullYear(endDate.getFullYear() - 10) // 10 years for monthly
         break
@@ -71,6 +75,8 @@ const ChartContainer = ({
   // Get load more time range based on interval
   const getLoadMoreTimeRange = (intervalValue) => {
     switch (intervalValue) {
+      case '3mo':
+        return { years: 10, months: 0, days: 0 } // 10 more years
       case '1mo':
         return { years: 5, months: 0, days: 0 } // 5 more years
       case '1wk':

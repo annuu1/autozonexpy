@@ -65,6 +65,7 @@ function CoincidingZoneForm({ onSubmit }) {
       label: 'Higher Timeframe Interval',
       type: 'select',
       options: [
+        {value: '3mo', label: 'Quaterly'},
         { value: '1mo', label: 'Monthly' },
         { value: '1wk', label: 'Weekly' },
         { value: '1d', label: 'Daily' },
@@ -148,6 +149,7 @@ function CoincidingZoneForm({ onSubmit }) {
       label: 'Lower Timeframe Interval',
       type: 'select',
       options: [
+        {value: '3mo', label: 'Quaterly'},
         { value: '1mo', label: 'Monthly' },
         { value: '1wk', label: 'Weekly' },
         { value: '1d', label: 'Daily' },

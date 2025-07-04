@@ -27,6 +27,8 @@ const ZoneChart = ({
     let startDate = new Date()
     
     switch (intervalValue) {
+      case '3mo':
+        startDate.setFullYear(endDate.getFullYear()-10) //10years for quaterly
       case '1mo':
         startDate.setFullYear(endDate.getFullYear() - 10) // 10 years for monthly
         break
@@ -58,6 +60,8 @@ const ZoneChart = ({
   // Get load more time range based on interval
   const getLoadMoreTimeRange = (intervalValue) => {
     switch (intervalValue) {
+      case '3mo':
+        return { years: 10, months: 0, days: 0 } //10years for quaterly
       case '1mo':
         return { years: 5, months: 0, days: 0 } // 5 more years
       case '1wk':
