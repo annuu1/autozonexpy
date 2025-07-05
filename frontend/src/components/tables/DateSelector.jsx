@@ -5,6 +5,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 const DateSelector = ({ selectedDate, onChange }) => (
   <div className="flex flex-col text-xs w-[200px]">
     <DatePicker
+      value={selectedDate}
       selected={selectedDate}
       onChange={onChange}
       dateFormat="yyyy-MM-dd"
