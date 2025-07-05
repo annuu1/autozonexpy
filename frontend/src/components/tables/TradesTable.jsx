@@ -1,8 +1,9 @@
 import React, { useEffect, useState, Component } from 'react';
 import { getTrades, updateTrade, deleteTrade, toggleTradeVerified, addTrade, getRealtimeData } from '../../services/api';
+import DateSelector from './DateSelector';
 import Card from '../ui/Card';
 import Modal from '../ui/Modal';
-import { RefreshCw, PlusCircle, Edit, Trash2, CheckCircle, XCircle, AlarmCheckIcon } from 'lucide-react';
+import { RefreshCw, PlusCircle, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { ChevronDown } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -47,6 +48,7 @@ const TradesTable = () => {
   const [targetRatio, setTargetRatio] = useState('1:2');
   const [formErrors, setFormErrors] = useState({});
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   // Debounced search update for symbol and status
   const debouncedSearch = debounce((params) => {
@@ -83,7 +85,7 @@ const TradesTable = () => {
     const handler = setTimeout(() => {
       fetchTrades();
     }, 500);
-    return () => clearTimeout(handler); 
+    return () => clearTimeout(handler);
   }, [currentPage, sortConfig, searchParams, itemsPerPage]);
 
   //fetch real time data manually
@@ -92,7 +94,9 @@ const TradesTable = () => {
       setRealtimeLoading(true);
       const tickers = [...new Set(trades.map((trade) => trade.symbol))];
       if (tickers.length > 0) {
-        const realtime = await getRealtimeData(tickers);
+        // Pass selectedDate in YYYY-MM-DD format or undefined
+        const dateStr = selectedDate ? selectedDate.toISOString().slice(0, 10) : undefined;
+        const realtime = await getRealtimeData(tickers, dateStr);
         const realtimeMap = {};
         realtime.forEach((data) => {
           realtimeMap[data.symbol] = { ltp: data.ltp, day_low: data.day_low };
@@ -307,7 +311,7 @@ const TradesTable = () => {
       setCurrentPage(1);
     }
   };
-  
+
 
   const handleModalClose = () => {
     setIsModalOpen(false);
@@ -539,11 +543,18 @@ const TradesTable = () => {
                     <option value="ltp">LTP</option>
                     <option value="day_low">Day's Low</option>
                   </select>
+                  <div className="w-[200px]">
+                    <DateSelector
+                      selectedDate={selectedDate}
+                      onChange={(date) => setSelectedDate(date)}
+                    />
+                  </div>
                   <button
                     onClick={fetchRealtimeDataManually}
-                    className="flex items-center px-4 py-1.5 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm font-medium"
+                    disabled={realtimeLoading}
+                    className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50 whitespace-nowrap"
                   >
-                    <RefreshCw className="w-4 h-4 mr-2" />
+                    <RefreshCw className={`w-4 h-4 ${realtimeLoading ? 'animate-spin' : ''}`} />
                     LTP
                   </button>
                 </div>
@@ -617,13 +628,12 @@ const TradesTable = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{trade.trade_type}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              trade.status === 'OPEN'
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${trade.status === 'OPEN'
                                 ? 'bg-green-100 text-green-800'
                                 : trade.status === 'CLOSED'
-                                ? 'bg-gray-100 text-gray-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}
+                                  ? 'bg-gray-100 text-gray-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}
                           >
                             {trade.status}
                           </span>
@@ -633,27 +643,24 @@ const TradesTable = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              trade.alert_sent ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                            }`}
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${trade.alert_sent ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                              }`}
                           >
                             {trade.alert_sent ? 'Yes' : 'No'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              trade.entry_alert_sent ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                            }`}
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${trade.entry_alert_sent ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                              }`}
                           >
                             {trade.entry_alert_sent ? 'Yes' : 'No'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              trade.verified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                            }`}
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${trade.verified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                              }`}
                           >
                             {trade.verified ? 'Yes' : 'No'}
                           </span>
@@ -677,9 +684,8 @@ const TradesTable = () => {
                             </button>
                             <button
                               onClick={() => handleToggleVerified(trade._id, trade.verified)}
-                              className={`p-1 ${
-                                trade.verified ? 'text-gray-600 hover:text-gray-800' : 'text-green-600 hover:text-green-800'
-                              }`}
+                              className={`p-1 ${trade.verified ? 'text-gray-600 hover:text-gray-800' : 'text-green-600 hover:text-green-800'
+                                }`}
                               title={trade.verified ? 'Mark as Unverified' : 'Mark as Verified'}
                             >
                               {trade.verified ? <XCircle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
@@ -711,11 +717,10 @@ const TradesTable = () => {
                         <button
                           key={page}
                           onClick={() => handlePageChange(page)}
-                          className={`px-4 py-2 rounded-lg ${
-                            currentPage === page
+                          className={`px-4 py-2 rounded-lg ${currentPage === page
                               ? 'bg-blue-500 text-white'
                               : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                          } transition-colors`}
+                            } transition-colors`}
                         >
                           {page}
                         </button>
