@@ -1,9 +1,11 @@
 import React, { useEffect, useState, Component, useCallback } from 'react';
 import { getAllZones, deleteZone } from '../../services/zones';
-import { getRealtimeData } from '../../services/api';
+import { getRealtimeData, getTradeBySymbol } from '../../services/api';
+import TradesModal from '../modals/TradesModal';
 import DateSelector from './DateSelector';
 import Card from '../ui/Card';
-import { ChevronUp, ChevronDown, Trash2, RefreshCcw } from 'lucide-react';
+import Modal from '../ui/Modal';
+import { ChevronUp, ChevronDown, Trash2, RefreshCw, PlusCircle, XCircle, CheckCircle, List, AlarmCheck } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { debounce } from 'lodash';
@@ -43,6 +45,13 @@ const AllZonesTable = () => {
   const [percentDiff, setPercentDiff] = useState('');
   const [priceType, setPriceType] = useState('ltp');
   const [zoneToDelete, setZoneToDelete] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isTradesModalOpen, setIsTradesModalOpen] = useState(false);
+  const [tradesList, setTradesList] = useState([]);
+  const [selectedTicker, setSelectedTicker] = useState('');
+  const [newTrade, setNewTrade] = useState(null);
+  const [targetRatio, setTargetRatio] = useState('1:2');
+  const [formErrors, setFormErrors] = useState({});
 
   // Debounced search update for ticker and pattern
   const debouncedSearch = useCallback(debounce((params) => {
@@ -68,7 +77,7 @@ const AllZonesTable = () => {
     }
   }, [currentPage, itemsPerPage, sortConfig, searchParams]);
 
-  // ✅ Fetch realtime data (manual trigger only)
+  // Fetch realtime data (manual trigger only)
   const fetchRealtimeData = useCallback(async () => {
     if (!zones || zones.length === 0) {
       toast.info("No zones available for realtime fetch.");
@@ -103,7 +112,7 @@ const AllZonesTable = () => {
     }
   }, [zones, selectedDate]);
 
-    // ✅ Debounced zones fetch
+    // Debounced zones fetch
     useEffect(() => {
       const handler = setTimeout(() => {
         fetchZones();
@@ -194,6 +203,185 @@ const AllZonesTable = () => {
     setZoneToDelete(null);
   };
 
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setNewTrade(null);
+    setFormErrors({});
+  };
+
+  const handleTradesModalOpen = async (ticker) => {
+    try {
+      setSelectedTicker(ticker);
+      const trades = await getTradeBySymbol(ticker);
+      setTradesList(trades);
+      setIsTradesModalOpen(true);
+    } catch (error) {
+      console.error('Error fetching trades:', error);
+      toast.error('Failed to fetch trades');
+    }
+  };
+
+  const handleTradesModalClose = () => {
+    setIsTradesModalOpen(false);
+    setTradesList([]);
+    setSelectedTicker('');
+  };
+
+  const handleAddTrade = (zone) => {
+    setNewTrade({
+      symbol: zone.ticker || '',
+      entry_price: '',
+      stop_loss: '',
+      target_price: '',
+      trade_type: 'BUY',
+      status: 'OPEN',
+      note: '',
+    });
+    setTargetRatio('1:2');
+    setIsModalOpen(true);
+  };
+
+  const validateTrade = (trade) => {
+    const errors = {};
+    if (!trade.symbol.trim()) {
+      errors.symbol = 'Symbol is required';
+    }
+    if (!trade.entry_price || trade.entry_price <= 0) {
+      errors.entry_price = 'Entry price must be positive';
+    }
+    if (!trade.stop_loss || trade.stop_loss <= 0) {
+      errors.stop_loss = 'Stop loss must be positive';
+    }
+    if (!trade.target_price || trade.target_price <= 0) {
+      errors.target_price = 'Target price must be positive';
+    }
+    if (trade.entry_price && trade.stop_loss && trade.trade_type === 'BUY' && trade.stop_loss >= trade.entry_price) {
+      errors.stop_loss = 'Stop Loss must be less than Entry Price for BUY';
+    }
+    if (trade.entry_price && trade.stop_loss && trade.trade_type === 'SELL' && trade.stop_loss <= trade.entry_price) {
+      errors.stop_loss = 'Stop Loss must be greater than Entry Price for SELL';
+    }
+    if (trade.entry_price && trade.target_price && trade.trade_type === 'BUY' && trade.target_price <= trade.entry_price) {
+      errors.target_price = 'Target Price must be greater than Entry Price for BUY';
+    }
+    if (trade.entry_price && trade.target_price && trade.trade_type === 'SELL' && trade.target_price >= trade.entry_price) {
+      errors.target_price = 'Target Price must be less than Entry Price for SELL';
+    }
+    return errors;
+  };
+
+  const handleFormChange = (field, value) => {
+    setNewTrade(prev => ({
+      ...prev,
+      [field]: field === 'symbol' ? value.toUpperCase() : value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const errors = validateTrade(newTrade);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    try {
+      await addTrade(newTrade);
+      toast.success('Trade added successfully');
+      handleModalClose();
+      // Optionally refresh the trades list if needed
+      // fetchTrades();
+    } catch (error) {
+      console.error('Error adding trade:', error);
+      toast.error(error.response?.data?.detail || 'Failed to add trade');
+    }
+  };
+
+  const renderTradeForm = () => (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="flex flex-col text-sm">
+          <label className="text-gray-600 font-medium mb-1">Symbol</label>
+          <input
+            type="text"
+            value={newTrade?.symbol || ''}
+            onChange={(e) => handleFormChange('symbol', e.target.value)}
+            className={`px-3 py-1.5 border ${formErrors.symbol ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
+            placeholder="e.g., AAPL"
+            required
+          />
+          {formErrors.symbol && <p className="text-red-500 text-xs mt-1">{formErrors.symbol}</p>}
+        </div>
+        <div className="flex flex-col text-sm">
+          <label className="text-gray-600 font-medium mb-1">Entry Price</label>
+          <input
+            type="number"
+            step="0.01"
+            value={newTrade?.entry_price || ''}
+            onChange={(e) => handleFormChange('entry_price', e.target.value)}
+            className={`px-3 py-1.5 border ${formErrors.entry_price ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
+            placeholder="0.00"
+            required
+          />
+          {formErrors.entry_price && <p className="text-red-500 text-xs mt-1">{formErrors.entry_price}</p>}
+        </div>
+        <div className="flex flex-col text-sm">
+          <label className="text-gray-600 font-medium mb-1">Stop Loss</label>
+          <input
+            type="number"
+            step="0.01"
+            value={newTrade?.stop_loss || ''}
+            onChange={(e) => handleFormChange('stop_loss', e.target.value)}
+            className={`px-3 py-1.5 border ${formErrors.stop_loss ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
+            placeholder="0.00"
+            required
+          />
+          {formErrors.stop_loss && <p className="text-red-500 text-xs mt-1">{formErrors.stop_loss}</p>}
+        </div>
+        <div className="flex flex-col text-sm">
+          <label className="text-gray-600 font-medium mb-1">Target Price</label>
+          <input
+            type="number"
+            step="0.01"
+            value={newTrade?.target_price || ''}
+            onChange={(e) => handleFormChange('target_price', e.target.value)}
+            className={`px-3 py-1.5 border ${formErrors.target_price ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
+            placeholder="0.00"
+            required
+          />
+          {formErrors.target_price && <p className="text-red-500 text-xs mt-1">{formErrors.target_price}</p>}
+        </div>
+        <div className="flex flex-col text-sm">
+          <label className="text-gray-600 font-medium mb-1">Trade Type</label>
+          <select
+            value={newTrade?.trade_type || 'BUY'}
+            onChange={(e) => handleFormChange('trade_type', e.target.value)}
+            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+            required
+          >
+            <option value="BUY">BUY</option>
+            <option value="SELL">SELL</option>
+          </select>
+        </div>
+      </div>
+      <div className="flex justify-end space-x-3 mt-4">
+        <button
+          type="button"
+          onClick={handleModalClose}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Add Trade
+        </button>
+      </div>
+    </form>
+  );
+
   const renderSortIcon = (key) => {
     if (sortConfig.key !== key) return null;
     return sortConfig.direction === 'asc' ? (
@@ -203,7 +391,7 @@ const AllZonesTable = () => {
     );
   };
 
-  // ✅ add RefreshCcw button into controls
+  // Add RefreshCw button into controls
   const renderControls = () => (
     <div className="flex gap-3 items-center">
       <DateSelector
@@ -215,7 +403,7 @@ const AllZonesTable = () => {
         disabled={realtimeLoading}
         className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50"
       >
-        <RefreshCcw className={`w-4 h-4 ${realtimeLoading ? 'animate-spin' : ''}`} />
+        <RefreshCw className={`w-4 h-4 ${realtimeLoading ? 'animate-spin' : ''}`} />
         LTP
       </button>
     </div>
@@ -324,6 +512,14 @@ const AllZonesTable = () => {
   return (
     <ErrorBoundary>
       <Card>
+        <Modal isOpen={isModalOpen} onClose={handleModalClose} title="Add New Trade">
+          {renderTradeForm()}
+        </Modal>
+        <TradesModal 
+          isOpen={isTradesModalOpen} 
+          onClose={handleTradesModalClose} 
+          trades={tradesList} 
+        />
         <div className="p-4">
           <div className="flex justify-between items-center mb-4">
             <div className="flex flex-wrap gap-4 mb-4">
@@ -507,14 +703,35 @@ const AllZonesTable = () => {
                             <span className="text-gray-400 text-xs">N/A</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => handleDeleteClick(zone)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Delete zone"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleAddTrade(zone)}
+                              className="text-green-600 hover:text-green-800"
+                              title="Add Trade"
+                            >
+                              <PlusCircle className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleTradesModalOpen(zone.ticker)}
+                              className="text-blue-600 hover:text-blue-800 relative"
+                              title="View Trades"
+                            >
+                              <AlarmCheck className="w-5 h-5" />
+                              {tradesList.length > 0 && (
+                                <sup className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                  {tradesList.length}
+                                </sup>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(zone)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete Zone"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
