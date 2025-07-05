@@ -1,6 +1,7 @@
 import React, { useEffect, useState, Component, useCallback } from 'react';
 import { getAllZones, deleteZone } from '../../services/zones';
 import { getRealtimeData } from '../../services/api';
+import DateSelector from './DateSelector';
 import Card from '../ui/Card';
 import { ChevronUp, ChevronDown, Trash2, RefreshCcw } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
@@ -27,6 +28,7 @@ class ErrorBoundary extends Component {
 }
 
 const AllZonesTable = () => {
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -77,7 +79,9 @@ const AllZonesTable = () => {
       setRealtimeLoading(true);
       const tickers = zones.map(zone => zone?.ticker).filter(Boolean).map(String);
       if (tickers.length === 0) return;
-      const data = await getRealtimeData(tickers);
+      // Pass selectedDate in YYYY-MM-DD format or undefined
+      const dateStr = selectedDate ? selectedDate.toISOString().slice(0, 10) : undefined;
+      const data = await getRealtimeData(tickers, dateStr);
 
       const dataMap = (data || []).reduce((acc, item) => {
         if (item?.symbol) {
@@ -97,7 +101,7 @@ const AllZonesTable = () => {
     } finally {
       setRealtimeLoading(false);
     }
-  }, [zones]);
+  }, [zones, selectedDate]);
 
     // ✅ Debounced zones fetch
     useEffect(() => {
@@ -201,15 +205,18 @@ const AllZonesTable = () => {
 
   // ✅ add RefreshCcw button into controls
   const renderControls = () => (
-    <div className="flex gap-3">
+    <div className="flex gap-3 items-center">
+      <DateSelector
+        selectedDate={selectedDate}
+        onChange={date => setSelectedDate(date)}
+      />
       <button
         onClick={fetchRealtimeData}
         disabled={realtimeLoading}
         className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50"
-        title="Refresh Realtime Data"
       >
         <RefreshCcw className={`w-4 h-4 ${realtimeLoading ? 'animate-spin' : ''}`} />
-        Refresh
+        LTP
       </button>
     </div>
   );

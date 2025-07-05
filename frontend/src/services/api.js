@@ -149,10 +149,16 @@ export const getTrades = async (page = 1, limit = 10, sortBy = 'created_at', sor
     }
   };
 
-export const getRealtimeData = async (tickers) => {
+export const getRealtimeData = async (tickers, date) => {
   try {
-    console.log(`Fetching real-time data for tickers: ${tickers.join(', ')}`);
-    const response = await axios.post(`${BASE_URL}/trades/realtime-data`, tickers);
+    console.log(`Fetching real-time data for tickers: ${tickers.join(', ')}${date ? ', date: ' + date : ''}`);
+    let payload;
+    if (date) {
+      payload = { tickers, date };
+    } else {
+      payload = tickers;
+    }
+    const response = await axios.post(`${BASE_URL}/trades/realtime-data`, payload);
     console.log('Realtime Data API Response:', response.data);
     return response.data.realtime_data || [];
   } catch (error) {

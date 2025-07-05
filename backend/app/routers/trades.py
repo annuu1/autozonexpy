@@ -202,25 +202,44 @@ async def toggle_trade_verified(trade_id: str, verify_data: VerifyTrade):
 
 
 # Get real-time data for multiple tickers
+from fastapi import Body
+
 @router.post("/realtime-data")
-async def get_realtime_data(tickers: List[str]):
+async def get_realtime_data(
+    payload: dict = Body(...)
+):
     try:
-        # Remove duplicates and empty strings, append .NS for Indian stocks
+        # Support both legacy (list) and new (dict) payload
+        if isinstance(payload, dict):
+            tickers = payload.get("tickers")
+            date_str = payload.get("date")
+        else:
+            tickers = payload
+            date_str = None
         tickers = list(set([t + ".NS" for t in tickers if t.strip()]))
         if not tickers:
             return {"realtime_data": []}
 
-        logger.info(f"Fetching real-time data for tickers: {tickers}")
+        logger.info(f"Fetching real-time data for tickers: {tickers}, date: {date_str}")
+
+        yf_kwargs = {
+            "tickers": tickers,
+            "interval": "1d",
+            "group_by": "ticker",
+            "threads": True,
+            "ignore_tz": True
+        }
+        if date_str:
+            from datetime import datetime, timedelta
+            start = datetime.strptime(date_str, "%Y-%m-%d")
+            end = start + timedelta(days=1)
+            yf_kwargs["start"] = start.strftime("%Y-%m-%d")
+            yf_kwargs["end"] = end.strftime("%Y-%m-%d")
+        else:
+            yf_kwargs["period"] = "1d"
 
         # Fetch data using yfinance
-        data = yf.download(
-            tickers=tickers,
-            period="1d",
-            interval="1d",
-            group_by="ticker",
-            threads=True,
-            ignore_tz=True
-        )
+        data = yf.download(**yf_kwargs)
 
         realtime_data = []
         for ticker in tickers:
