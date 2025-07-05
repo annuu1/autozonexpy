@@ -9,7 +9,6 @@ const DateSelector = ({ selectedDate, onChange }) => (
       onChange={onChange}
       dateFormat="yyyy-MM-dd"
       className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-      maxDate={new Date()}
       isClearable
       placeholderText="Pick a date"
     />
