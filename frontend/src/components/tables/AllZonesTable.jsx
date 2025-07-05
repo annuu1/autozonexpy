@@ -29,9 +29,13 @@ class ErrorBoundary extends Component {
   }
 }
 
+// Key for localStorage
+const ZONE_VIEWS_KEY = 'zoneViews';
+
 const AllZonesTable = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [zones, setZones] = useState([]);
+  const [zoneViews, setZoneViews] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -112,13 +116,62 @@ const AllZonesTable = () => {
     }
   }, [zones, selectedDate]);
 
-    // Debounced zones fetch
-    useEffect(() => {
-      const handler = setTimeout(() => {
-        fetchZones();
-      }, 400);
-      return () => clearTimeout(handler);
-    }, [searchParams, currentPage, itemsPerPage, sortConfig, fetchZones]);
+  // Load zone views from localStorage on component mount
+  useEffect(() => {
+    const savedViews = localStorage.getItem(ZONE_VIEWS_KEY);
+    if (savedViews) {
+      setZoneViews(JSON.parse(savedViews));
+    }
+  }, []);
+
+  // Save zone views to localStorage when they change
+  useEffect(() => {
+    if (Object.keys(zoneViews).length > 0) {
+      localStorage.setItem(ZONE_VIEWS_KEY, JSON.stringify(zoneViews));
+    }
+  }, [zoneViews]);
+
+  // Track when a zone is viewed
+  const trackZoneView = (zoneId) => {
+    setZoneViews(prevViews => ({
+      ...prevViews,
+      [zoneId]: new Date().toISOString()
+    }));
+  };
+
+  // Get view status for a zone
+  const getViewStatus = (zoneId) => {
+    const viewDate = zoneViews[zoneId];
+    if (!viewDate) return 'never';
+    
+    const viewTime = new Date(viewDate).getTime();
+    const now = new Date().getTime();
+    const daysAgo = (now - viewTime) / (1000 * 60 * 60 * 24);
+    
+    if (daysAgo <= 2) return 'recent';
+    if (daysAgo <= 5) return 'moderate';
+    if (daysAgo <= 10) return 'old';
+    return 'very-old';
+  };
+
+  // Get status color class
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'recent': return 'bg-green-100 text-green-800';
+      case 'moderate': return 'bg-yellow-100 text-yellow-800';
+      case 'old': return 'bg-orange-100 text-orange-800';
+      case 'very-old': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Debounced zones fetch
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      fetchZones();
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchParams, currentPage, itemsPerPage, sortConfig, fetchZones]);
 
   // Calculate percent difference between price (LTP or Day's Low) and proximal line
   const calculatePercentDiff = (zone) => {
@@ -137,7 +190,6 @@ const AllZonesTable = () => {
       return null;
     }
   };
-
 
   // Filter zones by percent difference
   const filteredZones = zones.filter(zone => {
@@ -436,14 +488,14 @@ const AllZonesTable = () => {
         <button
           onClick={() => handlePageChange(1)}
           disabled={currentPage === 1}
-          className="px-3 py-1 border rounded disabled:opacity-50"
+          className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
         >
           «
         </button>
         <button
           onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="px-3 py-1 border rounded disabled:opacity-50"
+          className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
         >
           ‹
         </button>
@@ -453,14 +505,14 @@ const AllZonesTable = () => {
         <button
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="px-3 py-1 border rounded disabled:opacity-50"
+          className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
         >
           ›
         </button>
         <button
           onClick={() => handlePageChange(totalPages)}
           disabled={currentPage === totalPages}
-          className="px-3 py-1 border rounded disabled:opacity-50"
+          className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
         >
           »
         </button>
@@ -523,72 +575,72 @@ const AllZonesTable = () => {
         <div className="p-4">
           <div className="flex justify-between items-center mb-4">
             <div className="flex flex-wrap gap-4 mb-4">
-  <div className="flex flex-col text-xs w-[200px]">
-    <label className="text-gray-600 font-medium mb-1">Ticker</label>
-    <input
-      type="text"
-      name="ticker"
-      placeholder="Filter by ticker..."
-      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-      onChange={handleFilterChange}
-      value={searchParams.ticker}
-    />
-  </div>
-  <div className="flex flex-col text-xs w-[200px]">
-    <label className="text-gray-600 font-medium mb-1">Pattern</label>
-    <select
-      name="pattern"
-      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-      onChange={handleFilterChange}
-      value={searchParams.pattern}
-    >
-      <option value="">All Patterns</option>
-      <option value="DBR">DBR</option>
-      <option value="RBR">RBR</option>
-    </select>
-  </div>
-  <div className="flex flex-col text-xs w-[200px]">
-    <label className="text-gray-600 font-medium mb-1">Timeframe</label>
-    <select
-      name="timeframe"
-      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-      onChange={handleFilterChange}
-      value={searchParams.timeframe}
-    >
-      <option value="">Select Timeframe</option>
-      <option value="3mo">3 Months</option>
-      <option value="1mo">1 Month</option>
-      <option value="1wk">1 Week</option>
-      <option value="1d">1 Day</option>
-      <option value="1h">1 Hour</option>
-      <option value="15m">15 Minutes</option>
-      <option value="5m">5 Minutes</option>
-    </select>
-  </div>
-  <div className="flex flex-col text-xs w-[200px]">
-    <label className="text-gray-600 font-medium mb-1">Max % Difference</label>
-    <div className="flex gap-2">
-      <input
-        type="number"
-        step="0.1"
-        value={percentDiff}
-        onChange={(e) => setPercentDiff(e.target.value)}
-        placeholder="Filter by %"
-        className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-      />
-      <select
-        value={priceType}
-        onChange={(e) => setPriceType(e.target.value)}
-        className="px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-      >
-        <option value="ltp">LTP</option>
-        <option value="day_low">Day's Low</option>
-      </select>
-      <div className="flex flex-wrap gap-4">{renderControls()}</div>
-    </div>
-    
-  </div>
-</div>
+              <div className="flex flex-col text-xs w-[200px]">
+                <label className="text-gray-600 font-medium mb-1">Ticker</label>
+                <input
+                  type="text"
+                  name="ticker"
+                  placeholder="Filter by ticker..."
+                  className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+                  onChange={handleFilterChange}
+                  value={searchParams.ticker}
+                />
+              </div>
+              <div className="flex flex-col text-xs w-[200px]">
+                <label className="text-gray-600 font-medium mb-1">Pattern</label>
+                <select
+                  name="pattern"
+                  className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+                  onChange={handleFilterChange}
+                  value={searchParams.pattern}
+                >
+                  <option value="">All Patterns</option>
+                  <option value="DBR">DBR</option>
+                  <option value="RBR">RBR</option>
+                </select>
+              </div>
+              <div className="flex flex-col text-xs w-[200px]">
+                <label className="text-gray-600 font-medium mb-1">Timeframe</label>
+                <select
+                  name="timeframe"
+                  className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+                  onChange={handleFilterChange}
+                  value={searchParams.timeframe}
+                >
+                  <option value="">Select Timeframe</option>
+                  <option value="3mo">3 Months</option>
+                  <option value="1mo">1 Month</option>
+                  <option value="1wk">1 Week</option>
+                  <option value="1d">1 Day</option>
+                  <option value="1h">1 Hour</option>
+                  <option value="15m">15 Minutes</option>
+                  <option value="5m">5 Minutes</option>
+                </select>
+              </div>
+              <div className="flex flex-col text-xs w-[200px]">
+                <label className="text-gray-600 font-medium mb-1">Max % Difference</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={percentDiff}
+                    onChange={(e) => setPercentDiff(e.target.value)}
+                    placeholder="Filter by %"
+                    className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+                  />
+                  <select
+                    value={priceType}
+                    onChange={(e) => setPriceType(e.target.value)}
+                    className="px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+                  >
+                    <option value="ltp">LTP</option>
+                    <option value="day_low">Day's Low</option>
+                  </select>
+                  <div className="flex flex-wrap gap-4">{renderControls()}</div>
+                </div>
+                
+              </div>
+            </div>
           </div>
           <div className="overflow-x-auto">
             {filteredZones.length === 0 ? (
@@ -654,8 +706,29 @@ const AllZonesTable = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredZones.map((zone) => (
                       <tr key={zone._id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {zone.ticker}
+                        <td 
+                          className="px-6 py-4 whitespace-nowrap text-sm font-medium"
+                          onClick={() => trackZoneView(zone.zone_id)}
+                        >
+                          <div className="flex items-center">
+                            <span className="mr-2">{zone.ticker}</span>
+                            {zoneViews[zone.zone_id] && (
+                              <span 
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(getViewStatus(zone.zone_id))}`}
+                                title={`Last checked: ${new Date(zoneViews[zone.zone_id]).toLocaleString()}`}
+                              >
+                                {new Date(zoneViews[zone.zone_id]).toLocaleDateString()}
+                              </span>
+                            )}
+                            {!zoneViews[zone.zone_id] && (
+                              <span 
+                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                                title="Never checked"
+                              >
+                                New
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {zone.zone_id}
