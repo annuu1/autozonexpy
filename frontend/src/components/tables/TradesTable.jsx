@@ -568,7 +568,7 @@ const TradesTable = () => {
               Add Trade
             </button>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[calc(100vh-200px)]">
             {loading ? (
               <div className="p-4 text-center text-gray-500 animate-pulse">Loading trades...</div>
             ) : error ? (
