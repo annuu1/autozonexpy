@@ -12,6 +12,7 @@ import ZoneChart from "./components/charts/ZoneChart.jsx";
 import TradesTable from "./components/tables/TradesTable.jsx";
 import AllZonesTable from "./components/tables/AllZonesTable.jsx";
 import 'react-toastify/dist/ReactToastify.css';
+import { TradeJournal } from "./components/TradeJournal.jsx";
 
 function App() {
   const [zones, setZones] = useState([]);
@@ -175,6 +176,17 @@ function App() {
                   <h2 className="text-2xl font-bold mb-6 text-gray-800">All Zones</h2>
                   <div className="h-[700px] w-full">
                     <AllZonesTable />
+                  </div>
+                </div>
+              }
+            />
+            <Route
+              path="/trade-journal"
+              element={
+                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl border border-white/20">
+                  <h2 className="text-2xl font-bold mb-6 text-gray-800">Trade Journal</h2>
+                  <div className="h-[700px] w-full">
+                    <TradeJournal />
                   </div>
                 </div>
               }
