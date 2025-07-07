@@ -83,7 +83,7 @@ async def get_trade(trade_id: str):
 @router.get("/")
 async def get_trades(
     page: int = Query(1, ge=1, description="Page number, starting from 1"),
-    limit: int = Query(10, ge=1, le=100, description="Number of trades per page"),
+    limit: int = Query(10, ge=1, le=1000, description="Number of trades per page"),
     sort_by: Optional[str] = Query("created_at", description="Field to sort by"),
     sort_order: Optional[str] = Query("desc", regex="^(asc|desc)$", description="Sort order (asc or desc)"),
     symbol: Optional[str] = Query("", description="Search by symbol (partial match)"),

@@ -16,7 +16,7 @@ class TradeStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 class TradeCreate(BaseModel):
-    symbol: str = Field(..., min_length=3)
+    symbol: str = Field(..., min_length=2)
     entry_price: float = Field(gt=0)
     stop_loss: Optional[float] = None
     target_price: Optional[float] = None

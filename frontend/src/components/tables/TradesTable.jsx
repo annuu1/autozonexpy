@@ -614,10 +614,8 @@ const TradesTable = () => {
                             <span className="text-gray-500 animate-pulse">Fetching...</span>
                           ) : (
                             <div className="flex flex-col space-y-1">
-                              <span>{trade.symbol}</span>
                               <span>LTP: {realtimeData[trade.symbol]?.ltp ?? 'N/A'}</span>
-                              <span>Day's Low: {realtimeData[trade.symbol]?.day_low ?? 'N/A'}</span>
-                              <span>% Diff: {calculatePercentDiff(trade)}%</span>
+                              <span style={{ color: realtimeData[trade.symbol] ? (calculatePercentDiff(trade) > 0 ? 'green' : 'red') : 'gray' }}>Low: {realtimeData[trade.symbol]?.day_low ?? 'N/A'} {realtimeData[trade.symbol] ? `(${calculatePercentDiff(trade)}%)` : ''}</span>
                             </div>
                           )}
                         </td>
@@ -665,7 +663,7 @@ const TradesTable = () => {
                             {trade.verified ? 'Yes' : 'No'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{trade.note}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-[200px] overflow-hidden text-ellipsis hover:whitespace-normal hover:cursor-pointer">{trade.note}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <div className="flex space-x-2">
                             <button
