@@ -13,6 +13,8 @@ import TradesTable from "./components/tables/TradesTable.jsx";
 import AllZonesTable from "./components/tables/AllZonesTable.jsx";
 import 'react-toastify/dist/ReactToastify.css';
 import { TradeJournal } from "./components/TradeJournal.jsx";
+import Dmat from "./components/pages/Dmat.jsx";
+import DmatDetail from "./components/pages/DmatDetail.jsx";
 
 function App() {
   const [zones, setZones] = useState([]);
@@ -50,10 +52,10 @@ function App() {
           {/* Enhanced Navigation */}
           <div className="flex flex-wrap justify-center gap-4 mb-8">
             <Link
-              to="/demand-zones"
+              to="/dmats"
               className="px-6 py-3 bg-white/80 backdrop-blur-sm text-blue-700 font-semibold rounded-xl shadow-md hover:shadow-lg hover:bg-white/90 transition-all duration-200 border border-blue-200"
             >
-              Single Demand Zones
+              Dmats
             </Link>
             <Link
               to="/coinciding-zones"
@@ -96,16 +98,18 @@ function App() {
           {/* Routes */}
           <Routes>
             <Route
-              path="/demand-zones"
+              path="/dmat"
               element={
                 <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
-                  <DemandZoneForm onSubmit={handleFormSubmit} />
-                  {error && (
-                    <div className="mt-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-xl border border-red-200">
-                      {error}
-                    </div>
-                  )}
-                  <DemandZoneTable zones={zones} />
+                  <Dmat />
+                </div>
+              }
+            />
+            <Route
+              path="/dmats"
+              element={
+                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+                  <DmatDetail />
                 </div>
               }
             />
