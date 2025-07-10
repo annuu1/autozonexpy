@@ -9,8 +9,8 @@ from app.db.database import collection
 from app.routers.zones import router as zones_router
 from app.routers.trades import router as trade_router
 from fastapi.middleware.cors import CORSMiddleware
-
 from app.routers import symbols
+from app.routers import kotak
 
 # Configure logging at the start of the module or main app
 logging.basicConfig(
@@ -31,6 +31,7 @@ app.include_router(router)
 app.include_router(zones_router)
 app.include_router(trade_router)
 app.include_router(symbols.router)
+app.include_router(kotak.router)
 
 app.add_middleware(
     CORSMiddleware,
