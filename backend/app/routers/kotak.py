@@ -2,7 +2,10 @@ from fastapi import APIRouter, HTTPException, status
 from typing import Any
 # Assuming kotak_login_controller is in app.controllers.kotakControllers
 from app.controllers.kotakControllers import kotak_login_controller
-import time
+from neo_api_client.exceptions import ApiValueError
+from fastapi import Body
+
+from app.models.kotakneo_models import PlaceOrderRequest
 
 router = APIRouter(prefix="/kotak", tags=["kotak"])
 
@@ -101,3 +104,86 @@ async def kotak_holdings():
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve holdings even after re-login: {retry_e}"
             )
+
+@router.get("/positions", response_model=Any)
+async def kotak_positions():
+    global GLOBAL_KOTAK_CLIENT # Declare global usage
+
+    # Get the authenticated client (will login if not already)
+    client = await get_authenticated_kotak_client()
+
+    try:
+        # Attempt the operation with the client
+        positions_data = client.positions()
+        return positions_data
+    except Exception as e:
+        # This is where you handle token expiration errors (e.g., 401 from the SDK)
+        # Without SDK docs, you might need to inspect the exception `e`
+        # For example, if `e` is an HTTPException with status 401:
+        # if isinstance(e, HTTPException) and e.status_code == status.HTTP_401_UNAUTHORIZED:
+        print(f"Error accessing positions (possibly token expired): {e}")
+
+        # Invalidate the current client and try re-login ONCE
+        GLOBAL_KOTAK_CLIENT = None # Mark for re-login
+        print("Attempting to re-login due to potential token expiration...")
+        try:
+            client = await get_authenticated_kotak_client() # This will force a new login
+            positions_data = client.positions() # Retry the operation
+            return positions_data
+        except Exception as retry_e:
+            print(f"Failed after re-login attempt for positions: {retry_e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to retrieve positions even after re-login: {retry_e}"
+            )
+
+@router.post("/place-order", response_model=Any)
+async def kotak_place_order(order_request: PlaceOrderRequest):
+    global GLOBAL_KOTAK_CLIENT
+
+    client = await get_authenticated_kotak_client()
+
+    try:
+        response = client.place_order(
+            exchange_segment=order_request.exchange_segment,
+            product=order_request.product,
+            price=order_request.price,
+            order_type=order_request.order_type,
+            quantity=order_request.quantity,
+            validity=order_request.validity,
+            trading_symbol=order_request.trading_symbol,
+            transaction_type=order_request.transaction_type,
+            amo=order_request.amo,
+            disclosed_quantity=order_request.disclosed_quantity,
+            market_protection=order_request.market_protection,
+            pf=order_request.pf,
+            trigger_price=order_request.trigger_price,
+            tag=order_request.tag
+        )
+
+        # Check if the response contains an error
+        if isinstance(response, dict) and "Error" in response:
+            error = response["Error"]
+            error_message = str(error) if isinstance(error, Exception) else str(error)
+            return {
+                "status": "error",
+                "error_message": error_message
+            }
+
+        return response
+
+    except ApiValueError as e:
+        print(f"ApiValueError placing order: {e}")
+        return {
+            "status": "error",
+            "error_type": "ApiValueError",
+            "error_message": str(e)
+        }
+
+    except Exception as e:
+        print(f"Unexpected error placing order: {e}")
+        return {
+            "status": "error",
+            "error_type": "Exception",
+            "error_message": str(e)
+        }
