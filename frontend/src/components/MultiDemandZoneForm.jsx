@@ -3,7 +3,7 @@ import axios from "axios";
 
 function MultiDemandZoneForm({ onZonesFetched }) {
   // Constants for default date range (1 year from June 20, 2025)
-  const today = new Date("2025-06-20");
+  const today = new Date();
   const oneYearAgo = new Date(today);
   oneYearAgo.setFullYear(today.getFullYear() - 1);
 
