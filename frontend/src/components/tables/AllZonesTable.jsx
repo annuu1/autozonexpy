@@ -1,6 +1,6 @@
 import React, { useEffect, useState, Component, useCallback } from 'react';
 import { getAllZones, deleteZone } from '../../services/zones';
-import { getRealtimeData, getTradeBySymbol } from '../../services/api';
+import { addTrade, getRealtimeData, getTradeBySymbol } from '../../services/api';
 import TradesModal from '../modals/TradesModal';
 import DateSelector from './DateSelector';
 import Card from '../ui/Card';
@@ -54,7 +54,8 @@ const AllZonesTable = () => {
   const [tradesList, setTradesList] = useState([]);
   const [selectedTicker, setSelectedTicker] = useState('');
   const [newTrade, setNewTrade] = useState(null);
-  const [targetRatio, setTargetRatio] = useState('1:2');
+  const [targetRatio, setTargetRatio] = useState('2:1');
+  const [isManualTarget, setIsManualTarget] = useState(false);
   const [formErrors, setFormErrors] = useState({});
 
   // Debounced search update for ticker and pattern
@@ -289,7 +290,8 @@ const AllZonesTable = () => {
       status: 'OPEN',
       note: '',
     });
-    setTargetRatio('1:2');
+    setTargetRatio('2:1');
+    setIsManualTarget(false);
     setIsModalOpen(true);
   };
 
@@ -322,11 +324,38 @@ const AllZonesTable = () => {
     return errors;
   };
 
+  const calculateTargetPrice = (entry, stop, type, ratio = targetRatio) => {
+    if (!entry || !stop) return '';
+    const [risk, reward] = ratio.split(':').map(Number);
+    const entryNum = parseFloat(entry);
+    const stopNum = parseFloat(stop);
+    
+    if (type === 'BUY') {
+      const diff = entryNum - stopNum;
+      return (entryNum + (diff * (reward / risk))).toFixed(2);
+    } else {
+      const diff = stopNum - entryNum;
+      return (entryNum - (diff * (reward / risk))).toFixed(2);
+    }
+  };
+
   const handleFormChange = (field, value) => {
-    setNewTrade(prev => ({
-      ...prev,
+    const updatedTrade = {
+      ...newTrade,
       [field]: field === 'symbol' ? value.toUpperCase() : value
-    }));
+    };
+
+    // Calculate target price when entry, stop loss, or trade type changes
+    if ((field === 'entry_price' || field === 'stop_loss' || field === 'trade_type') && 
+        updatedTrade.entry_price && updatedTrade.stop_loss && !isManualTarget) {
+      updatedTrade.target_price = calculateTargetPrice(
+        updatedTrade.entry_price,
+        updatedTrade.stop_loss,
+        updatedTrade.trade_type
+      );
+    }
+
+    setNewTrade(updatedTrade);
   };
 
   const handleSubmit = async (e) => {
@@ -338,7 +367,14 @@ const AllZonesTable = () => {
     }
 
     try {
-      await addTrade(newTrade);
+      await addTrade(
+        newTrade.symbol,
+        newTrade.entry_price,
+        newTrade.stop_loss,
+        newTrade.target_price,
+        newTrade.trade_type,
+        newTrade.note || ''
+      );
       toast.success('Trade added successfully');
       handleModalClose();
       // Optionally refresh the trades list if needed
@@ -347,6 +383,28 @@ const AllZonesTable = () => {
       console.error('Error adding trade:', error);
       toast.error(error.response?.data?.detail || 'Failed to add trade');
     }
+  };
+
+  const handleRatioChange = (e) => {
+    const ratio = e.target.value;
+    setTargetRatio(ratio);
+    
+    if (!isManualTarget && newTrade.entry_price && newTrade.stop_loss) {
+      const calculatedTarget = calculateTargetPrice(
+        newTrade.entry_price,
+        newTrade.stop_loss,
+        newTrade.trade_type,
+        ratio
+      );
+      setNewTrade(prev => ({
+        ...prev,
+        target_price: calculatedTarget
+      }));
+    }
+  };
+
+  const handleTargetFocus = () => {
+    setIsManualTarget(true);
   };
 
   const renderTradeForm = () => (
@@ -391,16 +449,40 @@ const AllZonesTable = () => {
           {formErrors.stop_loss && <p className="text-red-500 text-xs mt-1">{formErrors.stop_loss}</p>}
         </div>
         <div className="flex flex-col text-sm">
-          <label className="text-gray-600 font-medium mb-1">Target Price</label>
+          <div className="flex justify-between items-center mb-1">
+            <label className="text-gray-600 font-medium">Target Price</label>
+            {!isManualTarget && (
+              <div className="flex items-center space-x-1">
+                <span className="text-xs text-gray-500">RR:</span>
+                <select 
+                  value={targetRatio} 
+                  onChange={handleRatioChange}
+                  className="text-xs border rounded px-1 py-0.5 bg-white"
+                >
+                  <option value="1:1">1:1</option>
+                  <option value="1.5:1">1.5:1</option>
+                  <option value="2:1">2:1</option>
+                  <option value="2.5:1">2.5:1</option>
+                  <option value="3:1">3:1</option>
+                </select>
+              </div>
+            )}
+          </div>
           <input
             type="number"
             step="0.01"
             value={newTrade?.target_price || ''}
             onChange={(e) => handleFormChange('target_price', e.target.value)}
+            onFocus={handleTargetFocus}
             className={`px-3 py-1.5 border ${formErrors.target_price ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all`}
             placeholder="0.00"
             required
           />
+          {!isManualTarget && newTrade?.entry_price && newTrade?.stop_loss && (
+            <p className="text-xs text-gray-500 mt-1">
+              Auto-calculated based on {targetRatio} risk-reward
+            </p>
+          )}
           {formErrors.target_price && <p className="text-red-500 text-xs mt-1">{formErrors.target_price}</p>}
         </div>
         <div className="flex flex-col text-sm">
