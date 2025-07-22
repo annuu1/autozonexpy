@@ -39,3 +39,10 @@ class TradeCreate(BaseModel):
         if v and "entry_price" in values and v <= values["entry_price"]:
             raise ValueError("Target Price must be greater than Entry Price")
         return v
+
+#sl and tgt model
+class SlTgt(BaseModel):
+    symbol: str
+    stop_loss: float
+    target_price: float
+    trade_type: Optional[TradeType] = TradeType.BUY

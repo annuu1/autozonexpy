@@ -18,6 +18,7 @@ collection = db[COLLECTION_NAME]
 trade_collection = db['trades']
 symbol_collection = db['symbols']
 journal_collection = db['journal']
+sl_tgt_collection = db['sl_tgt']
 
 async def init_db():
     """Initialize MongoDB with a unique index on zone_id"""

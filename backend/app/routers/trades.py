@@ -1,8 +1,8 @@
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
-from app.db.database import trade_collection
+from app.db.database import trade_collection, sl_tgt_collection
 from bson import ObjectId
-from app.models.trade_models import TradeCreate, VerifyTrade
+from app.models.trade_models import SlTgt, TradeCreate, VerifyTrade
 from app.models.models import RealtimeData
 import yfinance as yf
 import logging
@@ -277,3 +277,13 @@ async def get_realtime_data(
     except Exception as e:
         logger.error(f"Failed to fetch real-time data: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch real-time data: {str(e)}")
+
+#router to add the sl and tgt in a new collection
+@router.post("/sl-tgt")
+async def add_sl_tgt(sl_tgt: SlTgt):
+    try:
+        result = await sl_tgt_collection.insert_one(sl_tgt.model_dump())
+        return {"message": "SL and TGT added successfully", "sl_tgt_id": str(result.inserted_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add SL and TGT: {str(e)}")
+        
