@@ -146,6 +146,12 @@ async def identify_demand_zones(
                             distal_line, 
                             leg_out.name.isoformat()
                         )
+        # 🚫 Skip if freshness is 0
+        if freshness_score == 0:
+            if DEBUG:
+                print("❌ Freshness is 0 — skipping this zone.\n")
+            i = j + 1
+            continue
         strength_score = 1.0 if leg_out_body_percent > 50 else 0.5
         time_at_base_score = 2.0 if len(base_candles) <= 3 else 1.0
         trade_score = freshness_score + strength_score + time_at_base_score
@@ -300,6 +306,12 @@ async def identify_ltf_zones(
                             distal_line, 
                             leg_out.name.isoformat()
                         )
+        # 🚫 Skip if freshness is 0
+        if freshness_score == 0:
+            if DEBUG:
+                print("❌ Freshness is 0 — skipping this zone.\n")
+            i = j + 1
+            continue
         #legout movement that is percent movement from the previous candle's close
         leg_out_movement = abs(data.iloc[j-1]['Close'] - leg_out['Close']) / leg_out['Close'] * 100
         if DEBUG:

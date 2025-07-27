@@ -48,6 +48,9 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
             min_legin_movement=request.minLeginMovement
         )
         logger.info(f"Found {len(higher_zones)} higher timeframe zones.")
+        # Filter out higher zones with freshness == 0
+        higher_zones = [zone for zone in higher_zones if zone.get("freshness", 1) != 0]
+        logger.info(f"Remaining {len(higher_zones)} higher timeframe zones.")
 
         # Map lower timeframe zones under corresponding higher timeframe zones
         if request.detectLowerZones:
@@ -97,6 +100,11 @@ async def find_demand_zones_controller(request: StockRequest) -> List[Dict]:
                                 f"{h_zone['start_timestamp']}: {str(e)}")
                     continue
         else:
+            for h_zone in higher_zones:
+                h_zone["timestamp"] = h_zone["start_timestamp"]
+                h_zone["coinciding_lower_zones"] = []
+                h_zone["ticker"] = request.ticker
+                h_zone["timeframes"] = [request.higher_interval]
             logger.info("Skipped lower timeframe demand zone detection as per request.")
 
         logger.info("Mapped lower timeframe zones under higher timeframe zones.")
