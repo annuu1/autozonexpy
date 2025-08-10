@@ -4,6 +4,7 @@ from typing import Any
 from app.controllers.kotakControllers import kotak_login_controller
 from neo_api_client.exceptions import ApiValueError
 from fastapi import Body
+from app.utils.autozonex_data_service import collection, init_db
 
 from app.models.kotakneo_models import PlaceOrderRequest
 
@@ -187,3 +188,122 @@ async def kotak_place_order(order_request: PlaceOrderRequest):
             "error_type": "Exception",
             "error_message": str(e)
         }
+
+
+@router.get('/set-stop-loss', response_model=Any)
+async def kotak_set_stop_loss():
+    global GLOBAL_KOTAK_CLIENT
+
+    client = await get_authenticated_kotak_client()
+
+    try:
+        await init_db()
+
+        # 1) Load open journals with valid stop loss
+        journals = await collection.find({"status": "Open", "stopLoss": {"$gt": 0}}).to_list(length=1000)
+
+        # 2) Fetch holdings
+        holdings_data = client.holdings()
+
+        # 3) Build lookup: symbol -> stopLoss
+        journal_stop_loss_map = {
+            j["symbol"]: j["stopLoss"] for j in journals if "symbol" in j and "stopLoss" in j
+        }
+
+        # 4) You MUST map each holding to the ScripMaster pTrdSymbol expected by API.
+        #    Implement a cache that maps (symbol, exchangeSegment) -> pTrdSymbol.
+        #    For example, preload ScripMaster for NSE CM and store pTrdSymbol by pSymbol/displaySymbol.
+        #    Here we assume a function get_ptrdsymbol(symbol, exchange_segment) that returns correct pTrdSymbol string.
+        #    You need to implement this using client.scrip_master() and local cache.
+        def get_ptrdsymbol(symbol: str, exchange_segment: str) -> str | None:
+            # TODO: Implement from your ScripMaster cache.
+            # Fall back to f"{symbol}-EQ" ONLY if verified from ScripMaster that this matches pTrdSymbol.
+            return None  # placeholder
+
+        results = []
+
+        # 5) Iterate holdings and place stop loss orders
+        for holding in holdings_data.get("data", []):
+            display_symbol = holding.get("displaySymbol")
+            exch_seg = holding.get("exchangeSegment")  # e.g., "nse_cm"
+            qty = holding.get("sellableQuantity") or holding.get("quantity")
+            last_close = holding.get("closingPrice")
+
+            if not display_symbol or not exch_seg or not qty:
+                results.append({display_symbol or "UNKNOWN": {"status": "skipped", "reason": "missing holding fields"}})
+                continue
+
+            if display_symbol not in journal_stop_loss_map:
+                results.append({display_symbol: {"status": "skipped", "reason": "stop loss not found or invalid in journal"}})
+                continue
+
+            sl_trigger = journal_stop_loss_map[display_symbol]
+
+            # Resolve trading symbol (pTrdSymbol)
+            pTrdSymbol = get_ptrdsymbol(display_symbol, exch_seg)
+            if not pTrdSymbol:
+                # As a fallback (not guaranteed for all symbols), try SYMBOL-EQ if on NSE CM.
+                # Strongly recommended: replace with true pTrdSymbol lookup from ScripMaster.
+                if exch_seg == "nse_cm":
+                    pTrdSymbol = f"{display_symbol}-EQ"
+                else:
+                    results.append({display_symbol: {"status": "error", "error_type": "SymbolMapError", "error_message": "Missing pTrdSymbol mapping"}})
+                    continue
+
+            # Choose SL-M to reduce pricing constraints: price must be "0", and trigger_price must be string.
+            # If you need SL (limit), ensure trigger_price < price for SELL and both are strings.
+            order_type = "SL-M"  # or "SL"
+            transaction_type = "S"  # SELL
+            validity = "DAY"
+            product = "CNC"  # For holdings delivery usually CNC; use NRML/MIS only if intended. Check your use-case.
+
+            # Convert required fields to strings per docs
+            str_qty = str(qty)
+            str_trigger = str(sl_trigger)
+
+            # For SL-M, price must be "0". For SL, set a sensible limit below trigger for a sell stop.
+            if order_type == "SL-M":
+                price_str = "0"
+            else:
+                # Example: 0.5% below trigger for sell SL limit
+                limit_price = max(0.0, float(sl_trigger) * 0.995)
+                price_str = f"{limit_price:.2f}"
+
+            try:
+                response = client.place_order(
+                    exchange_segment=exch_seg,          # e.g., "nse_cm"
+                    product=product,                    # "CNC" for selling holdings; confirm per requirement
+                    price=price_str,                    # string
+                    order_type=order_type,              # "SL-M" or "SL"
+                    quantity=str_qty,                   # string
+                    validity=validity,                  # "DAY"
+                    trading_symbol=pTrdSymbol,          # MUST be pTrdSymbol from ScripMaster
+                    transaction_type=transaction_type,  # "S"
+                    amo="NO",                           # string "NO" per docs default
+                    disclosed_quantity="0",             # string
+                    market_protection="0",              # string
+                    pf="N",                             # string default
+                    trigger_price=str_trigger,          # string
+                    tag="stop-loss-auto22"                # optional tag as string
+                )
+
+                if isinstance(response, dict) and "Error" in response:
+                    error = response["Error"]
+                    error_message = str(error) if isinstance(error, Exception) else str(error)
+                    results.append({display_symbol: {"status": "error", "error_type": "ResponseError", "error_message": error_message}})
+                else:
+                    results.append({display_symbol: {"status": "success", "response": response}})
+
+            except ApiValueError as api_err:
+                results.append({display_symbol: {"status": "error", "error_type": "ApiValueError", "error_message": str(api_err)}})
+            except Exception as e:
+                results.append({display_symbol: {"status": "error", "error_type": "Exception", "error_message": str(e)}})
+
+        return {"stop_loss_order_results": results}
+
+    except Exception as e:
+        GLOBAL_KOTAK_CLIENT = None
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process stop loss orders: {e}"
+        )

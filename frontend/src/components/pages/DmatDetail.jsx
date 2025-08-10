@@ -110,59 +110,110 @@ const AddTrade = ({ onAddTrade, dmatId }) => {
   );
 };
 
-const Holdings = ({ holdings }) => (
-  <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700 shadow-lg transition-all duration-300 hover:shadow-xl">
-    <h2 className="text-2xl font-bold text-gray-100 mb-6">Holdings</h2>
-    {holdings?.length === 0 ? (
-      <p className="text-gray-400 text-center py-4">No holdings available.</p>
-    ) : (
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="text-gray-400 text-sm font-medium border-b border-gray-700">
-              <th className="py-3 px-4">Stock</th>
-              <th className="py-3 px-4">Instrument</th>
-              <th className="py-3 px-4">Sector</th>
-              <th className="py-3 px-4">Quantity</th>
-              <th className="py-3 px-4">Sellable Qty</th>
-              <th className="py-3 px-4">Avg Price</th>
-              <th className="py-3 px-4">LTP</th>
-              <th className="py-3 px-4">Holding Cost</th>
-              <th className="py-3 px-4">Market Value</th>
-              <th className="py-3 px-4">P&L</th>
-            </tr>
-          </thead>
-          <tbody>
-            {holdings?.map((holding) => {
-              const pnl = holding.closingPrice && holding.averagePrice ? (holding.closingPrice - holding.averagePrice) * holding.quantity : 0;
-              return (
-                <tr
-                  key={holding.scripId || holding.displaySymbol}
-                  className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-all duration-200"
-                >
-                  <td className="py-3 px-4 text-gray-100">{holding.displaySymbol}</td>
-                  <td className="py-3 px-4 text-gray-100">{holding.instrumentName || 'N/A'}</td>
-                  <td className="py-3 px-4 text-gray-100">{holding.sector || 'N/A'}</td>
-                  <td className="py-3 px-4 text-gray-100">{holding.quantity}</td>
-                  <td className="py-3 px-4 text-gray-100">{holding.sellableQuantity || holding.quantity}</td>
-                  <td className="py-3 px-4 text-gray-100">₹{Number(holding.averagePrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="py-3 px-4 text-gray-100">
-                    {holding.closingPrice ? `₹${Number(holding.closingPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'N/A'}
-                  </td>
-                  <td className="py-3 px-4 text-gray-100">₹{Number(holding.holdingCost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="py-3 px-4 text-gray-100">₹{Number(holding.mktValue).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className={`py-3 px-4 ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    ₹{Math.abs(pnl).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {pnl >= 0 ? '↑' : '↓'}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </div>
-);
+const Holdings = ({ holdings }) => {
+  const [loading, setLoading] = useState(false);
+  const [stopLossResults, setStopLossResults] = useState(null);
+  const [error, setError] = useState(null);
+
+  const handleSetStopLoss = async () => {
+    setLoading(true);
+    setError(null);
+    setStopLossResults(null);
+    try {
+      const response = await fetch('http://localhost:8000/kotak/set-stop-loss');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setStopLossResults(data.stop_loss_order_results);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700 shadow-lg transition-all duration-300 hover:shadow-xl">
+      <h2 className="text-2xl font-bold text-gray-100 mb-6 flex justify-between items-center">
+        Holdings
+        <button
+          onClick={handleSetStopLoss}
+          disabled={loading}
+          className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300 shadow-md hover:shadow-lg disabled:opacity-50"
+        >
+          {loading ? 'Setting SL...' : 'Set SL for All'}
+        </button>
+      </h2>
+
+      {error && <p className="text-red-400 mb-4">Error: {error}</p>}
+      {stopLossResults && (
+        <div className="max-h-64 overflow-auto mb-6 bg-gray-900 p-4 rounded-lg border border-gray-700 text-sm text-gray-300">
+          {stopLossResults.map((result, idx) => {
+            const symbol = Object.keys(result)[0];
+            const res = result[symbol];
+            return (
+              <div key={idx} className="mb-2">
+                <strong>{symbol}:</strong> {res.status}
+                {res.status === 'error' && <span> - {res.error_message}</span>}
+                {res.status === 'skipped' && <span> - {res.reason}</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {holdings?.length === 0 ? (
+        <p className="text-gray-400 text-center py-4">No holdings available.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-gray-400 text-sm font-medium border-b border-gray-700">
+                <th className="py-3 px-4">Stock</th>
+                <th className="py-3 px-4">Instrument</th>
+                <th className="py-3 px-4">Sector</th>
+                <th className="py-3 px-4">Quantity</th>
+                <th className="py-3 px-4">Sellable Qty</th>
+                <th className="py-3 px-4">Avg Price</th>
+                <th className="py-3 px-4">LTP</th>
+                <th className="py-3 px-4">Holding Cost</th>
+                <th className="py-3 px-4">Market Value</th>
+                <th className="py-3 px-4">P&L</th>
+              </tr>
+            </thead>
+            <tbody>
+              {holdings?.map((holding) => {
+                const pnl = holding.closingPrice && holding.averagePrice ? (holding.closingPrice - holding.averagePrice) * holding.quantity : 0;
+                return (
+                  <tr
+                    key={holding.scripId || holding.displaySymbol}
+                    className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-all duration-200"
+                  >
+                    <td className="py-3 px-4 text-gray-100">{holding.displaySymbol}</td>
+                    <td className="py-3 px-4 text-gray-100">{holding.instrumentName || 'N/A'}</td>
+                    <td className="py-3 px-4 text-gray-100">{holding.sector || 'N/A'}</td>
+                    <td className="py-3 px-4 text-gray-100">{holding.quantity}</td>
+                    <td className="py-3 px-4 text-gray-100">{holding.sellableQuantity || holding.quantity}</td>
+                    <td className="py-3 px-4 text-gray-100">₹{Number(holding.averagePrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-4 text-gray-100">
+                      {holding.closingPrice ? `₹${Number(holding.closingPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'N/A'}
+                    </td>
+                    <td className="py-3 px-4 text-gray-100">₹{Number(holding.holdingCost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-4 text-gray-100">₹{Number(holding.mktValue).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className={`py-3 px-4 ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      ₹{Math.abs(pnl).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {pnl >= 0 ? '↑' : '↓'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const DmatDetail = () => {
   const { id } = useParams();
